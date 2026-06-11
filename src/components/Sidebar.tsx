@@ -1,0 +1,93 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  if (!user) return null;
+
+  const isActive = (path: string) => {
+    return pathname === path;
+  };
+
+  const linkClass = (path: string) => {
+    return `flex items-center gap-3 px-md py-sm rounded-lg transition-all duration-200 ease-in-out ${
+      isActive(path)
+        ? 'bg-secondary-container text-on-secondary-container font-semibold'
+        : 'text-on-surface-variant hover:bg-surface-container-low hover:text-primary'
+    }`;
+  };
+
+  return (
+    <aside className="h-screen w-64 fixed left-0 top-0 z-40 bg-surface border-r border-outline-variant flex flex-col p-md space-y-sm hidden md:flex">
+      <div className="mb-xl px-sm">
+        <Link href="/dashboard">
+          <h1 className="font-headline-xl text-headline-xl font-black text-primary cursor-pointer">CareerGenie</h1>
+        </Link>
+        <p className="font-label-sm text-label-sm text-on-surface-variant">AI Recruitment Hub</p>
+      </div>
+
+      <nav className="flex-1 space-y-1">
+        {/* Common Dashboard gateway */}
+        <Link href="/dashboard" className={linkClass('/dashboard')}>
+          <span className="material-symbols-outlined">dashboard</span>
+          <span className="font-label-md text-label-md">Dashboard</span>
+        </Link>
+
+        {/* Student specific links */}
+        {user.role === 'student' && (
+          <>
+            <Link href="/resume" className={linkClass('/resume')}>
+              <span className="material-symbols-outlined">description</span>
+              <span className="font-label-md text-label-md">Resume Analysis</span>
+            </Link>
+            <Link href="/jobs" className={linkClass('/jobs')}>
+              <span className="material-symbols-outlined">work</span>
+              <span className="font-label-md text-label-md">Job Matches</span>
+            </Link>
+            <Link href="/applications" className={linkClass('/applications')}>
+              <span className="material-symbols-outlined">send</span>
+              <span className="font-label-md text-label-md">Applications</span>
+            </Link>
+          </>
+        )}
+
+        {/* Recruiter specific links */}
+        {user.role === 'recruiter' && (
+          <>
+            <Link href="/recruiter/create-job" className={linkClass('/recruiter/create-job')}>
+              <span className="material-symbols-outlined">add_box</span>
+              <span className="font-label-md text-label-md">Post a Job</span>
+            </Link>
+          </>
+        )}
+
+        {/* Common Profile link */}
+        <Link href="/profile" className={linkClass('/profile')}>
+          <span className="material-symbols-outlined">person</span>
+          <span className="font-label-md text-label-md">Profile</span>
+        </Link>
+      </nav>
+
+      <div className="pt-xl border-t border-outline-variant space-y-1">
+        {user.role === 'student' && (
+          <button className="w-full bg-primary text-on-primary py-sm rounded-lg font-label-md text-label-md hover:opacity-90 active:scale-95 transition-all mb-md">
+            Upgrade to Pro
+          </button>
+        )}
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-md py-sm text-on-surface-variant hover:bg-surface-container-low hover:text-error rounded-lg text-left transition-colors"
+        >
+          <span className="material-symbols-outlined">logout</span>
+          <span className="font-label-md text-label-md">Logout</span>
+        </button>
+      </div>
+    </aside>
+  );
+}

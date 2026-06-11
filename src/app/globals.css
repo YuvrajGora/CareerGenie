@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --background: #faf8ff;
+  --foreground: #191b23;
+}
+
+@theme {
+  --color-background: #faf8ff;
+  --color-foreground: #191b23;
+  --color-primary: #004ac6;
+  --color-secondary: #4648d4;
+  --color-tertiary: #943700;
+  --color-on-tertiary: #ffffff;
+  --color-on-secondary: #ffffff;
+  --color-on-background: #191b23;
+  --color-primary-container: #2563eb;
+  --color-surface: #faf8ff;
+  --color-surface-container: #ededf9;
+  --color-surface-container-low: #f3f3fe;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e7e7f3;
+  --color-surface-container-highest: #e1e2ed;
+  --color-secondary-container: #6063ee;
+  --color-on-secondary-container: #fffbff;
+  --color-on-primary-container: #eeefff;
+  --color-on-surface: #191b23;
+  --color-on-surface-variant: #434655;
+  --color-outline: #737686;
+  --color-outline-variant: #c3c6d7;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+
+  --font-inter: "Inter", sans-serif;
+  --font-sans: "Inter", var(--font-geist-sans), sans-serif;
+
+  /* Custom spacings from Stitch */
+  --spacing-gutter: 24px;
+  --spacing-lg: 24px;
+  --spacing-margin-desktop: 40px;
+  --spacing-xs: 4px;
+  --spacing-max-width: 1280px;
+  --width-max-width: 1280px;
+  --max-width-max-width: 1280px;
+  --spacing-base: 4px;
+  --spacing-md: 16px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-margin-mobile: 16px;
+  --spacing-sm: 8px;
+  --spacing-3xl: 64px;
+
+  /* Prevent spacing variables from overriding standard layout sizes in Tailwind CSS v4 */
+  --width-sm: 24rem;
+  --width-md: 28rem;
+  --width-lg: 32rem;
+  --width-xl: 36rem;
+  --width-2xl: 42rem;
+  --width-3xl: 48rem;
+  --width-4xl: 56rem;
+  --width-5xl: 64rem;
+  --width-6xl: 72rem;
+  --width-7xl: 80rem;
+
+  --max-width-sm: 24rem;
+  --max-width-md: 28rem;
+  --max-width-lg: 32rem;
+  --max-width-xl: 36rem;
+  --max-width-2xl: 42rem;
+  --max-width-3xl: 48rem;
+  --max-width-4xl: 56rem;
+  --max-width-5xl: 64rem;
+  --max-width-6xl: 72rem;
+  --max-width-7xl: 80rem;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+.glass-card {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid #c3c6d7;
+}
+
+.hero-gradient {
+  background: radial-gradient(circle at top right, #dbe1ff 0%, #faf8ff 50%);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 10px;
+}
+

@@ -1,0 +1,147 @@
+import { NextRequest, NextResponse } from 'next/server';
+import Job from '@/models/Job';
+import { createJobSchema } from '@/validations/validation';
+
+export async function createJob(req: any) {
+  try {
+    const user = req.user;
+    const body = await req.json();
+
+    // Validate request body
+    const validation = createJobSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error.issues[0].message }, { status: 400 });
+    }
+
+    const job = new Job({
+      ...validation.data,
+      recruiterId: user._id,
+      status: 'active'
+    });
+
+    await job.save();
+
+    return NextResponse.json({
+      message: 'Job posting created successfully.',
+      job
+    }, { status: 201 });
+  } catch (error: any) {
+    console.error('Create job error:', error);
+    return NextResponse.json({ error: 'Internal server error while creating job.' }, { status: 500 });
+  }
+}
+
+export async function getJobs(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.get('q') || '';
+    const location = searchParams.get('location') || '';
+    const skills = searchParams.get('skills') || '';
+
+    // Build filter object
+    const filter: any = { status: 'active' };
+
+    if (query) {
+      filter.$or = [
+        { title: { $regex: query, $options: 'i' } },
+        { company: { $regex: query, $options: 'i' } },
+        { description: { $regex: query, $options: 'i' } }
+      ];
+    }
+
+    if (location) {
+      filter.location = { $regex: location, $options: 'i' };
+    }
+
+    if (skills) {
+      const skillsList = skills.split(',').map((s) => s.trim()).filter(Boolean);
+      if (skillsList.length > 0) {
+        filter.requiredSkills = { $in: skillsList };
+      }
+    }
+
+    const jobs = await Job.find(filter).sort({ createdAt: -1 });
+    return NextResponse.json({ jobs });
+  } catch (error: any) {
+    console.error('Get jobs error:', error);
+    return NextResponse.json({ error: 'Internal server error retrieving jobs.' }, { status: 500 });
+  }
+}
+
+export async function getJobById(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params;
+    const job = await Job.findById(id);
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found.' }, { status: 404 });
+    }
+    return NextResponse.json({ job });
+  } catch (error: any) {
+    console.error('Get job by ID error:', error);
+    return NextResponse.json({ error: 'Internal server error retrieving job.' }, { status: 500 });
+  }
+}
+
+export async function updateJob(req: any, { params }: { params: { id: string } }) {
+  try {
+    const user = req.user;
+    const { id } = params;
+    const body = await req.json();
+
+    const job = await Job.findById(id);
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found.' }, { status: 404 });
+    }
+
+    // Verify ownership or admin role
+    if (job.recruiterId.toString() !== user._id.toString() && user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden. You do not have permission to modify this listing.' }, { status: 403 });
+    }
+
+    // Validate partial updates
+    const validation = createJobSchema.partial().safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error.issues[0].message }, { status: 400 });
+    }
+
+    const updatedJob = await Job.findByIdAndUpdate(
+      id,
+      { $set: validation.data },
+      { new: true }
+    );
+
+    return NextResponse.json({
+      message: 'Job posting updated successfully.',
+      job: updatedJob
+    });
+  } catch (error: any) {
+    console.error('Update job error:', error);
+    return NextResponse.json({ error: 'Internal server error updating job.' }, { status: 500 });
+  }
+}
+
+export async function deleteJob(req: any, { params }: { params: { id: string } }) {
+  try {
+    const user = req.user;
+    const { id } = params;
+
+    const job = await Job.findById(id);
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found.' }, { status: 404 });
+    }
+
+    // Verify ownership or admin role
+    if (job.recruiterId.toString() !== user._id.toString() && user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden. You do not have permission to delete this listing.' }, { status: 403 });
+    }
+
+    await Job.findByIdAndDelete(id);
+
+    return NextResponse.json({
+      message: 'Job posting deleted successfully.'
+    });
+  } catch (error: any) {
+    console.error('Delete job error:', error);
+    return NextResponse.json({ error: 'Internal server error deleting job.' }, { status: 500 });
+  }
+}
