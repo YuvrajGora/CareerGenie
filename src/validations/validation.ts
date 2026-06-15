@@ -33,3 +33,19 @@ export const createJobSchema = z.object({
 export const updateApplicationStatusSchema = z.object({
   status: z.enum(['applied', 'interviewing', 'accepted', 'rejected']),
 });
+
+export const objectIdSchema = z.string().refine((val) => /^[0-9a-fA-F]{24}$/.test(val), {
+  message: 'Invalid Mongo ObjectId format',
+});
+
+export const coverLetterSchema = z.object({
+  jobId: objectIdSchema,
+  tone: z.enum(['professional', 'enthusiastic', 'concise']),
+  refresh: z.boolean().optional(),
+});
+
+export const interviewPrepSchema = z.object({
+  jobId: objectIdSchema,
+  refresh: z.boolean().optional(),
+});
+

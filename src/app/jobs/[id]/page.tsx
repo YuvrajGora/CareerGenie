@@ -23,6 +23,12 @@ export default function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [applied, setApplied] = useState(false);
+  const [match, setMatch] = useState<{
+    matchScore: number;
+    skillsMatch: number;
+    experienceMatch: number;
+    educationMatch: number;
+  } | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -36,6 +42,7 @@ export default function JobDetailsPage() {
       if (res.ok) {
         const data = await res.json();
         setJob(data.job);
+        setMatch(data.match);
       }
     } catch (err) {
       console.error('Error fetching job details:', err);
@@ -83,11 +90,6 @@ export default function JobDetailsPage() {
     );
   }
 
-  // Calculate random match components for high fidelity
-  const matchScore = 90;
-  const skillsMatch = 92;
-  const experienceMatch = 85;
-  const educationMatch = 90;
 
   return (
     <main className="pt-24 pb-2xl max-w-max-width mx-auto px-md md:px-lg grid grid-cols-1 lg:grid-cols-12 gap-lg text-left">
@@ -193,73 +195,97 @@ export default function JobDetailsPage() {
       {/* Sidebar (Right Column) */}
       <aside className="lg:col-span-4 space-y-lg">
         {/* AI Match Breakdown Widget */}
-        <section className="bg-surface-container-lowest border border-outline-variant p-xl rounded-xl relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 w-24 h-24 bg-primary/10 blur-3xl rounded-full"></div>
-          <div className="relative">
-            <div className="flex items-center gap-sm mb-lg">
-              <div className="p-xs bg-primary/10 rounded-lg text-primary">
-                <span className="material-symbols-outlined">psychology</span>
-              </div>
-              <h3 className="font-headline-lg text-headline-lg text-primary font-bold">AI Match Score</h3>
-            </div>
-            <div className="flex flex-col items-center mb-xl">
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <svg className="w-full h-full -rotate-90">
-                  <circle className="text-surface-container" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" strokeWidth="8"></circle>
-                  <circle
-                    className="text-primary transition-all duration-1000 ease-out"
-                    cx="64"
-                    cy="64"
-                    fill="transparent"
-                    r="58"
-                    stroke="currentColor"
-                    strokeDasharray="364.4"
-                    strokeDashoffset={364.4 - (364.4 * matchScore) / 100}
-                    strokeWidth="8"
-                  ></circle>
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-headline-xl font-black text-on-surface">{matchScore}%</span>
-                  <span className="text-label-sm text-on-surface-variant uppercase font-bold">Excellent</span>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-md">
-              <div className="space-y-xs">
-                <div className="flex justify-between font-label-md text-label-md font-semibold">
-                  <span className="text-on-surface">Skills Match</span>
-                  <span className="text-primary">{skillsMatch}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full" style={{ width: `${skillsMatch}%` }}></div>
-                </div>
-              </div>
-              <div className="space-y-xs">
-                <div className="flex justify-between font-label-md text-label-md font-semibold">
-                  <span className="text-on-surface">Experience</span>
-                  <span className="text-primary">{experienceMatch}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full" style={{ width: `${experienceMatch}%` }}></div>
-                </div>
-              </div>
-              <div className="space-y-xs">
-                <div className="flex justify-between font-label-md text-label-md font-semibold">
-                  <span className="text-on-surface">Education</span>
-                  <span className="text-primary">{educationMatch}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full" style={{ width: `${educationMatch}%` }}></div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-xl p-md bg-surface-container-low rounded-lg border border-outline-variant/50">
-              <p className="font-body-sm text-body-sm text-on-surface-variant italic">
-                "You exceed the technical requirements. Focus your application on your leadership experience in distributed environments."
+        {!match ? (
+          <section className="bg-surface-container-lowest border border-outline-variant p-xl rounded-xl relative overflow-hidden text-center">
+            <div className="flex flex-col items-center gap-md py-md">
+              <span className="material-symbols-outlined text-4xl text-outline">psychology_alt</span>
+              <h3 className="font-headline-sm text-headline-sm text-on-surface font-bold">AI Match Score</h3>
+              <p className="text-body-sm text-on-surface-variant leading-relaxed">
+                Log in as a student and complete your profile/resume to view your personalized AI Match Score for this job.
               </p>
+              <Link
+                href="/login"
+                className="mt-xs bg-primary text-white px-md py-sm rounded-lg font-label-md text-label-md hover:brightness-110 transition-all font-bold inline-block"
+              >
+                Log In / Complete Profile
+              </Link>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : (
+          <section className="bg-surface-container-lowest border border-outline-variant p-xl rounded-xl relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-24 h-24 bg-primary/10 blur-3xl rounded-full"></div>
+            <div className="relative">
+              <div className="flex items-center gap-sm mb-lg">
+                <div className="p-xs bg-primary/10 rounded-lg text-primary">
+                  <span className="material-symbols-outlined">psychology</span>
+                </div>
+                <h3 className="font-headline-lg text-headline-lg text-primary font-bold">AI Match Score</h3>
+              </div>
+              <div className="flex flex-col items-center mb-xl">
+                <div className="relative w-32 h-32 flex items-center justify-center">
+                  <svg className="w-full h-full -rotate-90">
+                    <circle className="text-surface-container" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" strokeWidth="8"></circle>
+                    <circle
+                      className="text-primary transition-all duration-1000 ease-out"
+                      cx="64"
+                      cy="64"
+                      fill="transparent"
+                      r="58"
+                      stroke="currentColor"
+                      strokeDasharray="364.4"
+                      strokeDashoffset={364.4 - (364.4 * match.matchScore) / 100}
+                      strokeWidth="8"
+                    ></circle>
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-headline-xl font-black text-on-surface">{match.matchScore}%</span>
+                    <span className="text-label-sm text-on-surface-variant uppercase font-bold">
+                      {match.matchScore >= 85 ? 'Excellent' : match.matchScore >= 70 ? 'Good' : match.matchScore >= 50 ? 'Fair' : 'Low'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-md">
+                <div className="space-y-xs">
+                  <div className="flex justify-between font-label-md text-label-md font-semibold">
+                    <span className="text-on-surface">Skills Match</span>
+                    <span className="text-primary">{match.skillsMatch}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${match.skillsMatch}%` }}></div>
+                  </div>
+                </div>
+                <div className="space-y-xs">
+                  <div className="flex justify-between font-label-md text-label-md font-semibold">
+                    <span className="text-on-surface">Experience</span>
+                    <span className="text-primary">{match.experienceMatch}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${match.experienceMatch}%` }}></div>
+                  </div>
+                </div>
+                <div className="space-y-xs">
+                  <div className="flex justify-between font-label-md text-label-md font-semibold">
+                    <span className="text-on-surface">Education</span>
+                    <span className="text-primary">{match.educationMatch}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${match.educationMatch}%` }}></div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-xl p-md bg-surface-container-low rounded-lg border border-outline-variant/50">
+                <p className="font-body-sm text-body-sm text-on-surface-variant italic">
+                  {match.matchScore >= 80
+                    ? '"Excellent match! You exceed the requirements. Focus your application on your technical and distributed environments experience."'
+                    : match.matchScore >= 60
+                    ? '"Good match. You meet key requirements. Highlight relevant skills and project experiences to stand out."'
+                    : '"Fair match. You may need to bolster some skills or experience. Highlight transferrable skills and continuous learning."'}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Company Quick Stats */}
         <section className="bg-surface-container-lowest border border-outline-variant p-xl rounded-xl space-y-md">

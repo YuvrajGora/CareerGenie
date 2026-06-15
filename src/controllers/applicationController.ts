@@ -3,9 +3,10 @@ import Application from '@/models/Application';
 import Job from '@/models/Job';
 import Resume from '@/models/Resume';
 import Notification from '@/models/Notification';
-import { calculateMatchScore } from '@/services/matching';
+import { calculateMatchScore, estimateExperience } from '@/services/matching';
 import { updateApplicationStatusSchema } from '@/validations/validation';
 import { sendApplicationConfirmationEmail } from '@/services/email';
+import { recordActivity } from '@/services/activity';
 
 
 export async function applyToJob(req: any) {
@@ -41,9 +42,13 @@ export async function applyToJob(req: any) {
     }
 
     // Calculate match score
+    const candidateExp = (user.yearsOfExperience !== undefined && user.yearsOfExperience !== null)
+      ? user.yearsOfExperience
+      : estimateExperience(resume.extractedText || '');
+
     const matchScore = calculateMatchScore(
       user.skills,
-      1, // default candidate experience
+      candidateExp,
       user.education || '',
       resume.extractedText,
       job.requiredSkills,
@@ -59,6 +64,8 @@ export async function applyToJob(req: any) {
     });
 
     await application.save();
+
+    await recordActivity(user._id, 'Job Applied', `Applied for "${job.title}" at ${job.company}.`, { jobId: job._id, matchScore });
 
     // Create notification for recruiter
     const notification = new Notification({
@@ -153,6 +160,12 @@ export async function updateApplicationStatus(req: any, { params }: { params: { 
 
     application.status = status;
     await application.save();
+
+    if (status === 'accepted') {
+      await recordActivity(application.studentId, 'Application Accepted', `Application for "${job.title}" at ${job.company} was accepted.`, { jobId: job._id, applicationId: application._id });
+    } else if (status === 'rejected') {
+      await recordActivity(application.studentId, 'Application Rejected', `Application for "${job.title}" at ${job.company} was rejected.`, { jobId: job._id, applicationId: application._id });
+    }
 
     // Create notification for student
     const notification = new Notification({

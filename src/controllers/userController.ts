@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import User from '@/models/User';
 import { updateProfileSchema } from '@/validations/validation';
+import { recordActivity } from '@/services/activity';
 
 export async function updateProfile(req: any) {
   try {
@@ -27,6 +28,8 @@ export async function updateProfile(req: any) {
       { $set: updateData },
       { new: true }
     );
+
+    await recordActivity(user._id, 'Profile Updated', 'Updated profile information.');
 
     return NextResponse.json({
       message: 'Profile updated successfully.',

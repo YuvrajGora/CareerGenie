@@ -37,6 +37,8 @@ export async function register(req: NextRequest) {
       profileImage: user.profileImage,
       skills: user.skills,
       education: user.education,
+      yearsOfExperience: user.yearsOfExperience,
+      careerLevel: user.careerLevel,
     };
 
     const response = NextResponse.json({
@@ -94,6 +96,8 @@ export async function login(req: NextRequest) {
       profileImage: user.profileImage,
       skills: user.skills,
       education: user.education,
+      yearsOfExperience: user.yearsOfExperience,
+      careerLevel: user.careerLevel,
     };
 
     const response = NextResponse.json({

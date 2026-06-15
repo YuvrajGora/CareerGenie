@@ -9,6 +9,8 @@ export interface IUser extends Document {
   profileImage?: string;
   skills: string[];
   education?: string;
+  yearsOfExperience?: number;
+  careerLevel?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -21,7 +23,9 @@ const UserSchema = new Schema<IUser>({
   role: { type: String, enum: ['student', 'recruiter', 'admin'], default: 'student' },
   profileImage: { type: String, default: '' },
   skills: { type: [String], default: [] },
-  education: { type: String, default: '' }
+  education: { type: String, default: '' },
+  yearsOfExperience: { type: Number, default: 0 },
+  careerLevel: { type: String, default: 'Intern' }
 }, {
   timestamps: true
 });

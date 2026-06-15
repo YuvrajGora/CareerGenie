@@ -1,0 +1,21 @@
+Jane Doe
+Software Engineer
+Email: jane.doe@example.com
+Phone: (123) 456-7890
+
+Summary:
+Innovative Software Engineer with 2+ years of experience specializing in frontend development, backend API integrations, and developer tooling. Passionate about typescript, react, next.js, node.js, and web technologies.
+
+Skills:
+- Languages: TypeScript, JavaScript, SQL, HTML, CSS
+- Frameworks: React, Next.js, Express, Node.js
+- Tools: Git, VS Code, Vercel
+
+Experience:
+Software Engineer | Tech Solutions (Jan 2024 - Present)
+- Developed modern web applications using React and Next.js, increasing page loading speeds by 30%.
+- Integrated REST APIs and implemented responsive, glassmorphism UI components.
+- Maintained developer operations using Git and CI/CD pipelines.
+
+Education:
+Bachelor of Science in Computer Science | State University (Graduated 2023)

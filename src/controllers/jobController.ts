@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Job from '@/models/Job';
 import { createJobSchema } from '@/validations/validation';
+import { verifyToken } from '@/middleware/auth';
+import User from '@/models/User';
+import Resume from '@/models/Resume';
+import JobMatch from '@/models/JobMatch';
+import { calculateDetailedMatchScore, estimateExperience } from '@/services/matching';
 
 export async function createJob(req: any) {
   try {
@@ -61,7 +66,68 @@ export async function getJobs(req: NextRequest) {
     }
 
     const jobs = await Job.find(filter).sort({ createdAt: -1 });
-    return NextResponse.json({ jobs });
+
+    const decoded = verifyToken(req);
+    let studentMatchesMap = new Map();
+    let hasResume = false;
+    let loggedInUser: any = null;
+    let userResume: any = null;
+
+    if (decoded && decoded.role === 'student') {
+      loggedInUser = await User.findById(decoded.userId);
+      userResume = await Resume.findOne({ userId: decoded.userId });
+      if (loggedInUser && userResume) {
+        hasResume = true;
+        const matches = await JobMatch.find({ studentId: decoded.userId });
+        for (const m of matches) {
+          studentMatchesMap.set(m.jobId.toString(), m.matchScore);
+        }
+      }
+    }
+
+    const decoratedJobs = [];
+    for (const job of jobs) {
+      let matchScore = null;
+      if (decoded && decoded.role === 'student') {
+        const jobIdStr = job._id.toString();
+        if (studentMatchesMap.has(jobIdStr)) {
+          matchScore = studentMatchesMap.get(jobIdStr);
+        } else if (hasResume && loggedInUser && userResume) {
+          const candidateExp = (loggedInUser.yearsOfExperience !== undefined && loggedInUser.yearsOfExperience !== null)
+            ? loggedInUser.yearsOfExperience
+            : estimateExperience(userResume.extractedText || '');
+
+          const result = calculateDetailedMatchScore(
+            loggedInUser.skills || [],
+            candidateExp,
+            loggedInUser.education || '',
+            userResume.extractedText || '',
+            job.requiredSkills || [],
+            job.experience || 0,
+            job.description || ''
+          );
+
+          JobMatch.create({
+            studentId: decoded.userId,
+            jobId: job._id,
+            matchScore: result.matchScore,
+            skillsMatch: result.skillsMatch,
+            experienceMatch: result.experienceMatch,
+            educationMatch: result.educationMatch
+          }).catch(err => console.error('Error saving JobMatch:', err));
+
+          matchScore = result.matchScore;
+        }
+      }
+
+      const jobObj = job.toObject() as any;
+      if (matchScore !== null) {
+        jobObj.matchScore = matchScore;
+      }
+      decoratedJobs.push(jobObj);
+    }
+
+    return NextResponse.json({ jobs: decoratedJobs });
   } catch (error: any) {
     console.error('Get jobs error:', error);
     return NextResponse.json({ error: 'Internal server error retrieving jobs.' }, { status: 500 });
@@ -75,12 +141,58 @@ export async function getJobById(req: NextRequest, { params }: { params: { id: s
     if (!job) {
       return NextResponse.json({ error: 'Job not found.' }, { status: 404 });
     }
-    return NextResponse.json({ job });
+
+    const decoded = verifyToken(req);
+    let match = null;
+
+    if (decoded && decoded.role === 'student') {
+      const existing = await JobMatch.findOne({ studentId: decoded.userId, jobId: job._id });
+      if (existing) {
+        match = {
+          matchScore: existing.matchScore,
+          skillsMatch: existing.skillsMatch,
+          experienceMatch: existing.experienceMatch,
+          educationMatch: existing.educationMatch
+        };
+      } else {
+        const loggedInUser = await User.findById(decoded.userId);
+        const userResume = await Resume.findOne({ userId: decoded.userId });
+        if (loggedInUser && userResume) {
+          const candidateExp = (loggedInUser.yearsOfExperience !== undefined && loggedInUser.yearsOfExperience !== null)
+            ? loggedInUser.yearsOfExperience
+            : estimateExperience(userResume.extractedText || '');
+
+          const result = calculateDetailedMatchScore(
+            loggedInUser.skills || [],
+            candidateExp,
+            loggedInUser.education || '',
+            userResume.extractedText || '',
+            job.requiredSkills || [],
+            job.experience || 0,
+            job.description || ''
+          );
+
+          await JobMatch.create({
+            studentId: decoded.userId,
+            jobId: job._id,
+            matchScore: result.matchScore,
+            skillsMatch: result.skillsMatch,
+            experienceMatch: result.experienceMatch,
+            educationMatch: result.educationMatch
+          });
+
+          match = result;
+        }
+      }
+    }
+
+    return NextResponse.json({ job, match });
   } catch (error: any) {
     console.error('Get job by ID error:', error);
     return NextResponse.json({ error: 'Internal server error retrieving job.' }, { status: 500 });
   }
 }
+
 
 export async function updateJob(req: any, { params }: { params: { id: string } }) {
   try {

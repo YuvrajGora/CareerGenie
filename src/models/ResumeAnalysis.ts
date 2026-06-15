@@ -8,6 +8,8 @@ export interface IResumeAnalysis extends Document {
   weaknesses: string[];
   missingSkills: string[];
   suggestions: string[];
+  yearsOfExperience?: number;
+  careerLevel?: string;
   analyzedAt: Date;
 }
 
@@ -19,6 +21,8 @@ const ResumeAnalysisSchema = new Schema<IResumeAnalysis>({
   weaknesses: { type: [String], default: [] },
   missingSkills: { type: [String], default: [] },
   suggestions: { type: [String], default: [] },
+  yearsOfExperience: { type: Number, default: 0 },
+  careerLevel: { type: String, default: 'Intern' },
   analyzedAt: { type: Date, default: Date.now }
 });
 

@@ -35,12 +35,7 @@ export default function JobsPage() {
       const res = await fetch(`/api/jobs?q=${search}&location=${location}&skills=${skillsQuery}`);
       if (res.ok) {
         const data = await res.json();
-        // Decorate with match score for demo purposes if not present
-        const decorated = (data.jobs || []).map((j: Job) => ({
-          ...j,
-          matchScore: j.matchScore || Math.floor(Math.random() * 25) + 75,
-        }));
-        setJobs(decorated);
+        setJobs(data.jobs || []);
       }
     } catch (err) {
       console.error('Failed to load matching jobs:', err);
@@ -219,11 +214,13 @@ export default function JobsPage() {
                     className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg hover:border-primary hover:shadow-md transition-all relative overflow-hidden"
                   >
                     {/* AI Highlight Match tag */}
-                    {job.matchScore && job.matchScore > 85 && (
-                      <div className="absolute top-0 right-0 bg-primary px-md py-1 rounded-bl-xl flex items-center gap-xs shadow-md">
-                        <span className="material-symbols-outlined text-[16px] text-white">psychology</span>
-                        <span className="text-white font-label-sm text-label-sm font-bold">
-                          {job.matchScore}% Match AI Recommended
+                    {job.matchScore !== undefined && job.matchScore !== null && (
+                      <div className={`absolute top-0 right-0 px-md py-1 rounded-bl-xl flex items-center gap-xs shadow-md ${
+                        job.matchScore > 80 ? 'bg-primary text-white' : 'bg-surface-container-high text-on-surface-variant border-l border-b border-outline-variant'
+                      }`}>
+                        <span className="material-symbols-outlined text-[16px]">psychology</span>
+                        <span className="font-label-sm text-label-sm font-bold">
+                          {job.matchScore}% Match {job.matchScore > 80 ? 'AI Recommended' : ''}
                         </span>
                       </div>
                     )}

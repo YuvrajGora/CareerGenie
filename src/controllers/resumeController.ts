@@ -4,6 +4,9 @@ import ResumeAnalysis from '@/models/ResumeAnalysis';
 import User from '@/models/User';
 import { uploadToCloudinary } from '@/services/cloudinary';
 import { analyzeResume } from '@/services/gemini';
+import { recalculateUserMatchScores } from '@/services/matching';
+import JobMatch from '@/models/JobMatch';
+import { recordActivity } from '@/services/activity';
 
 export async function uploadResume(req: any) {
   try {
@@ -39,6 +42,8 @@ export async function uploadResume(req: any) {
       await resume.save();
     }
 
+    await recordActivity(user._id, 'Resume Uploaded', 'Uploaded new resume draft.');
+
     // 3. Analyze resume text with Gemini
     const analysisResult = await analyzeResume(extractedText);
 
@@ -51,6 +56,8 @@ export async function uploadResume(req: any) {
       analysis.weaknesses = analysisResult.weaknesses;
       analysis.missingSkills = analysisResult.missingSkills;
       analysis.suggestions = analysisResult.suggestions;
+      analysis.yearsOfExperience = analysisResult.yearsOfExperience;
+      analysis.careerLevel = analysisResult.careerLevel;
       analysis.analyzedAt = new Date();
       await analysis.save();
     } else {
@@ -61,12 +68,22 @@ export async function uploadResume(req: any) {
         strengths: analysisResult.strengths,
         weaknesses: analysisResult.weaknesses,
         missingSkills: analysisResult.missingSkills,
-        suggestions: analysisResult.suggestions
+        suggestions: analysisResult.suggestions,
+        yearsOfExperience: analysisResult.yearsOfExperience,
+        careerLevel: analysisResult.careerLevel
       });
       await analysis.save();
     }
 
-    // 5. Automatically sync extracted skills back to User Profile skills array
+    // 5. Automatically sync extracted skills, years of experience, and career level back to User Profile
+    const updateFields: any = {};
+    if (analysisResult.yearsOfExperience !== undefined && analysisResult.yearsOfExperience !== null) {
+      updateFields.yearsOfExperience = analysisResult.yearsOfExperience;
+    }
+    if (analysisResult.careerLevel) {
+      updateFields.careerLevel = analysisResult.careerLevel;
+    }
+
     if (analysisResult.extractedSkills && analysisResult.extractedSkills.length > 0) {
       const existingSkills = new Set(user.skills.map((s: string) => s.toLowerCase().trim()));
       
@@ -82,8 +99,32 @@ export async function uploadResume(req: any) {
         return originalMatch || skillKey;
       });
 
-      await User.findByIdAndUpdate(user._id, { $set: { skills: updatedSkills } });
+      updateFields.skills = updatedSkills;
     }
+
+    if (Object.keys(updateFields).length > 0) {
+      await User.findByIdAndUpdate(user._id, { $set: updateFields });
+    }
+
+    // 6. Recalculate match scores for the user using the newly updated profile fields
+    await recalculateUserMatchScores(user._id);
+
+    // Fetch average match score for trend tracking
+    const matches = await JobMatch.find({ studentId: user._id });
+    const avgMatchScore = matches.length > 0
+      ? Math.round(matches.reduce((acc: number, m: any) => acc + m.matchScore, 0) / matches.length)
+      : 0;
+
+    await recordActivity(
+      user._id,
+      'Resume Analyzed',
+      `AI Score: ${analysisResult.overallScore}/100. ATS Score: ${analysisResult.atsScore}/100.`,
+      {
+        atsScore: analysisResult.atsScore,
+        overallScore: analysisResult.overallScore,
+        avgMatchScore
+      }
+    );
 
     return NextResponse.json({
       message: 'Resume uploaded and analyzed successfully.',

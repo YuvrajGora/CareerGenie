@@ -33,7 +33,9 @@ export default function ProfilePage() {
       setEducation(user.education || '');
       setSkillsString(user.skills?.join(', ') || '');
       setProfileImage(user.profileImage || '');
-      loadResumeHistory();
+      if (user.role === 'student') {
+        loadResumeHistory();
+      }
     }
   }, [user, authLoading, router]);
 
@@ -160,10 +162,12 @@ export default function ProfilePage() {
             <span className="material-symbols-outlined">psychology</span>
             <span className="font-label-md text-label-md">Skills & Expertise</span>
           </a>
-          <a className="flex items-center gap-md p-md text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all" href="#history">
-            <span className="material-symbols-outlined">history</span>
-            <span className="font-label-md text-label-md">Resume History</span>
-          </a>
+          {user.role === 'student' && (
+            <a className="flex items-center gap-md p-md text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all" href="#history">
+              <span className="material-symbols-outlined">history</span>
+              <span className="font-label-md text-label-md">Resume History</span>
+            </a>
+          )}
           <a className="flex items-center gap-md p-md text-on-surface-variant hover:bg-surface-container-low rounded-lg transition-all" href="#settings">
             <span className="material-symbols-outlined">settings</span>
             <span className="font-label-md text-label-md">Account Settings</span>
@@ -226,6 +230,29 @@ export default function ProfilePage() {
                 </div>
               </div>
 
+              {user.role === 'student' && (
+                <div className="grid md:grid-cols-2 gap-md">
+                  <div className="flex flex-col gap-xs">
+                    <label className="font-label-sm text-label-sm text-on-surface-variant font-bold">Years of Experience (Extracted)</label>
+                    <input
+                      disabled
+                      value={user.yearsOfExperience !== undefined ? `${user.yearsOfExperience} years` : '0 years'}
+                      className="px-md py-sm bg-surface-container-low border border-outline-variant rounded-lg text-body-md text-outline cursor-not-allowed font-semibold"
+                      type="text"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-xs">
+                    <label className="font-label-sm text-label-sm text-on-surface-variant font-bold">Career Level (Extracted)</label>
+                    <input
+                      disabled
+                      value={user.careerLevel || 'Intern'}
+                      className="px-md py-sm bg-surface-container-low border border-outline-variant rounded-lg text-body-md text-outline cursor-not-allowed font-semibold"
+                      type="text"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-xs">
                 <label className="font-label-sm text-label-sm text-on-surface-variant font-bold">Education Details</label>
                 <input
@@ -272,48 +299,50 @@ export default function ProfilePage() {
         </section>
 
         {/* Resume History */}
-        <section className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm" id="history">
-          <div className="flex justify-between items-center mb-xl">
-            <h2 className="font-headline-lg text-headline-lg text-on-surface font-bold">Resume History</h2>
-            <button
-              onClick={() => router.push('/resume')}
-              className="flex items-center gap-sm px-md py-sm bg-surface-container-high rounded-lg font-label-md text-label-md hover:bg-surface-dim transition-colors font-bold"
-            >
-              <span className="material-symbols-outlined text-[18px]">upload</span> Upload New
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            {resumeHistory.length === 0 ? (
-              <p className="text-body-sm text-on-surface-variant italic">No resume uploaded yet.</p>
-            ) : (
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-outline-variant">
-                    <th className="pb-md font-label-md text-label-md text-on-surface-variant font-bold">Version Name</th>
-                    <th className="pb-md font-label-md text-label-md text-on-surface-variant font-bold">Date Uploaded</th>
-                    <th className="pb-md font-label-md text-label-md text-on-surface-variant font-bold">ATS Score</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/30">
-                  {resumeHistory.map((res, index) => (
-                    <tr key={index} className="hover:bg-surface-container-low transition-colors">
-                      <td className="py-md flex items-center gap-sm">
-                        <span className="material-symbols-outlined text-error">picture_as_pdf</span>
-                        <span className="font-body-md text-body-md font-medium">{res.name}</span>
-                      </td>
-                      <td className="py-md text-on-surface-variant font-body-sm font-semibold">{res.date}</td>
-                      <td className="py-md">
-                        <span className="px-sm py-xs bg-primary/10 text-primary rounded-full text-label-sm font-bold">
-                          {res.score}%
-                        </span>
-                      </td>
+        {user.role === 'student' && (
+          <section className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm" id="history">
+            <div className="flex justify-between items-center mb-xl">
+              <h2 className="font-headline-lg text-headline-lg text-on-surface font-bold">Resume History</h2>
+              <button
+                onClick={() => router.push('/resume')}
+                className="flex items-center gap-sm px-md py-sm bg-surface-container-high rounded-lg font-label-md text-label-md hover:bg-surface-dim transition-colors font-bold"
+              >
+                <span className="material-symbols-outlined text-[18px]">upload</span> Upload New
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              {resumeHistory.length === 0 ? (
+                <p className="text-body-sm text-on-surface-variant italic">No resume uploaded yet.</p>
+              ) : (
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-outline-variant">
+                      <th className="pb-md font-label-md text-label-md text-on-surface-variant font-bold">Version Name</th>
+                      <th className="pb-md font-label-md text-label-md text-on-surface-variant font-bold">Date Uploaded</th>
+                      <th className="pb-md font-label-md text-label-md text-on-surface-variant font-bold">ATS Score</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/30">
+                    {resumeHistory.map((res, index) => (
+                      <tr key={index} className="hover:bg-surface-container-low transition-colors">
+                        <td className="py-md flex items-center gap-sm">
+                          <span className="material-symbols-outlined text-error">picture_as_pdf</span>
+                          <span className="font-body-md text-body-md font-medium">{res.name}</span>
+                        </td>
+                        <td className="py-md text-on-surface-variant font-body-sm font-semibold">{res.date}</td>
+                        <td className="py-md">
+                          <span className="px-sm py-xs bg-primary/10 text-primary rounded-full text-label-sm font-bold">
+                            {res.score}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Account Settings / Settings Anchor */}
         <section className="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm" id="settings">
