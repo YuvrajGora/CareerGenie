@@ -180,6 +180,6 @@ A suite of verification scripts are provided to perform automated E2E integratio
 ## 👥 Author Information
 
 Developed with ❤️ by **Yuvraj Gora**.
-- **Email**: [yuvrajgora.dev@gmail.com](mailto:yuvrajgora.dev@gmail.com)
+- **Email**: [yuvrajgora10mar@gmail.com](mailto:yuvrajgora10mar@gmail.com)
 - **GitHub**: [@YuvrajGora](https://github.com/YuvrajGora)
-- **LinkedIn**: [Yuvraj Gora](https://linkedin.com/in/yuvrajgora)
+- **LinkedIn**: [Yuvraj Gora](https://www.linkedin.com/in/yuvraj-gora-b4735a367)
