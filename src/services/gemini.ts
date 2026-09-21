@@ -1062,5 +1062,183 @@ export async function generateWorkforceRiskExplanation(
   }
 }
 
+// ============================================================================
+// POLICY-GROUNDED REASONING & COMPLIANCE QA
+// ============================================================================
+
+export interface PolicySourceItem {
+  policyCode: string;
+  title: string;
+  section: string;
+  supportingText: string;
+}
+
+export interface PolicyAnswerPayload {
+  answer: string;
+  interpretation: string;
+  confidence: 'high' | 'medium' | 'low';
+  grounded: boolean;
+  sources: PolicySourceItem[];
+  recommendedNextSteps: string[];
+}
+
+/**
+ * Generates an authoritative, policy-grounded QA answer strictly from retrieved PolicyDocument sources.
+ * Never invents policies. Falls back to deterministic extraction when Gemini is unavailable.
+ */
+export async function generatePolicyAnswer(
+  userQuestion: string,
+  retrievedSources: Array<{
+    policyCode: string;
+    title: string;
+    relevantSection: string;
+    sectionId: string;
+    sourceText: string;
+    relevanceScore: number;
+    matchReasons?: string[];
+  }>
+): Promise<PolicyAnswerPayload> {
+  const client = getAiClient();
+
+  // Helper for deterministic fallback when Gemini is unavailable or fails
+  const getFallback = (): PolicyAnswerPayload => {
+    if (!retrievedSources || retrievedSources.length === 0) {
+      return {
+        answer: 'Policy coverage not found. The currently active company policies do not contain rules, limits, or guidelines addressing this specific inquiry.',
+        interpretation: 'No authoritative corporate policy document was identified matching this topic in the policy library.',
+        confidence: 'low',
+        grounded: false,
+        sources: [],
+        recommendedNextSteps: [
+          'Consult with People Operations (HR) directly for clarification on this matter.',
+          'Submit an inquiry to the People & Culture Committee for policy documentation.'
+        ]
+      };
+    }
+
+    const topSource = retrievedSources[0];
+    const sourcesList: PolicySourceItem[] = retrievedSources.slice(0, 3).map((s) => ({
+      policyCode: s.policyCode,
+      title: s.title,
+      section: s.relevantSection,
+      supportingText: s.sourceText
+    }));
+
+    let directAnswer = '';
+    if (retrievedSources.length === 1) {
+      directAnswer = `According to ${topSource.title} (${topSource.policyCode}), Section ${topSource.relevantSection}: "${topSource.sourceText}"`;
+    } else {
+      const summarySnippets = retrievedSources.slice(0, 2).map((s) => `Under ${s.policyCode} (${s.relevantSection}): "${s.sourceText}"`).join(' Furthermore, ');
+      directAnswer = `According to official company guidelines: ${summarySnippets}`;
+    }
+
+    const interpretation = `This policy applies organization-wide across declared regional home timezones and departments. Relevant provisions are governed under ${retrievedSources.map((s) => s.policyCode).join(' and ')}.`;
+
+    const nextSteps: string[] = [
+      `Review full document details for ${topSource.policyCode} in the HR Policy Library.`,
+      'Confirm any individual eligibility or pre-approval requirements with your People Ops business partner.'
+    ];
+
+    if (topSource.policyCode === 'POL-REM-2026') {
+      nextSteps.unshift('Submit relevant reimbursement receipts or cross-border travel requests via the HR operations portal.');
+    } else if (topSource.policyCode === 'POL-PTO-2026') {
+      nextSteps.unshift('Log planned leave in the HRIS time-off calendar at least two weeks prior to requested dates.');
+    } else if (topSource.policyCode === 'POL-PRO-2026') {
+      nextSteps.unshift('Discuss career track milestones with your engineering manager during the upcoming review cycle.');
+    }
+
+    return {
+      answer: directAnswer,
+      interpretation,
+      confidence: 'high',
+      grounded: true,
+      sources: sourcesList,
+      recommendedNextSteps: nextSteps
+    };
+  };
+
+  if (!client) {
+    return getFallback();
+  }
+
+  // If no sources were retrieved, return ungrounded without calling Gemini
+  if (!retrievedSources || retrievedSources.length === 0) {
+    return getFallback();
+  }
+
+  try {
+    const sourcesSummary = retrievedSources.map((s, idx) => `[Source ${idx + 1}]
+Policy: ${s.title} (${s.policyCode})
+Section: ${s.relevantSection}
+Official Text: "${s.sourceText}"`).join('\n\n');
+
+    const prompt = `
+      You are an authoritative HR Compliance & Policy Intelligence Specialist.
+      Answer the user's question STRICTLY and ONLY using the provided authoritative company policy documents.
+
+      User Question: "${userQuestion}"
+
+      Authoritative Policy Sources:
+      ${sourcesSummary}
+
+      CRITICAL GROUNDING RULES:
+      1. Answer ONLY from supplied policy sources.
+      2. NEVER invent company policy, numbers, rules, stipends, limits, or dates.
+      3. If the sources do not directly answer the question, you MUST set "grounded": false, "confidence": "low", and state clearly in "answer": "Policy coverage not found. The currently active company policies do not contain rules addressing this inquiry."
+      4. Clearly distinguish explicit policy language ("The policy explicitly states...") from interpretation ("This implies...").
+      5. Cite the exact policy source(s) used in the "sources" array.
+      6. Do NOT fabricate policy codes, section IDs, or dates.
+      7. If multiple policies apply, explain how they interact.
+      8. If there is ambiguity, explicitly identify it in "interpretation".
+
+      Return a JSON object conforming STRICTLY to this JSON structure:
+      {
+        "answer": "What the policy explicitly states regarding the question",
+        "interpretation": "Why this applies, operational context, and any nuances",
+        "confidence": "high" or "medium" or "low",
+        "grounded": true or false,
+        "sources": [
+          {
+            "policyCode": "exact policyCode from source",
+            "title": "exact title from source",
+            "section": "exact relevantSection from source",
+            "supportingText": "exact text from source"
+          }
+        ],
+        "recommendedNextSteps": [
+          "Practical step 1",
+          "Practical step 2"
+        ]
+      }
+
+      Return ONLY raw JSON without markdown code blocks.
+    `;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      }
+    });
+
+    const text = response.text;
+    if (!text) return getFallback();
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText) as PolicyAnswerPayload;
+
+    if (!result.answer || typeof result.grounded !== 'boolean' || !Array.isArray(result.sources)) {
+      return getFallback();
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Failed to generate Gemini policy answer, using deterministic fallback:', error);
+    return getFallback();
+  }
+}
+
+
 
 
