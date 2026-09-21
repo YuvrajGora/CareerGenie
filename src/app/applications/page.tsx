@@ -84,6 +84,8 @@ export default function ApplicationsPage() {
     );
   }
 
+  if (!user) return null;
+
   // Filter application items
   const filteredApps = applications.filter((app) => {
     const jobTitle = app.jobId?.title?.toLowerCase() || '';

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 interface Job {
   _id: string;
@@ -20,6 +21,7 @@ interface Job {
 export default function JobDetailsPage() {
   const router = useRouter();
   const { id } = useParams();
+  const { user } = useAuth();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [applied, setApplied] = useState(false);
@@ -53,6 +55,15 @@ export default function JobDetailsPage() {
 
   const handleApply = async () => {
     if (!job) return;
+    if (!user) {
+      alert('Please sign in as a student to apply for jobs.');
+      router.push('/auth');
+      return;
+    }
+    if (user.role !== 'student') {
+      alert('Only student accounts can submit job applications.');
+      return;
+    }
     try {
       const res = await fetch('/api/applications', {
         method: 'POST',

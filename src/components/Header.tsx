@@ -223,8 +223,13 @@ export default function Header() {
                   )}
                 </div>
                 <div className="hidden lg:block text-left">
-                  <p className="font-label-md text-label-md text-on-surface leading-none group-hover:text-primary transition-colors">{user.name}</p>
-                  <p className="text-[10px] text-on-surface-variant capitalize mt-0.5">{user.role}</p>
+                  <p className="font-label-md text-label-md text-on-surface leading-none group-hover:text-primary transition-colors font-bold">{user.name}</p>
+                  <div className="text-[10px] text-on-surface-variant capitalize mt-0.5 flex items-center gap-1">
+                    <span>{user.role}</span>
+                    {user.role === 'admin' && (
+                      <span className="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-error/15 text-error">Admin</span>
+                    )}
+                  </div>
                 </div>
                 <span className="material-symbols-outlined text-outline text-sm group-hover:text-primary transition-colors">arrow_drop_down</span>
               </button>
@@ -237,7 +242,12 @@ export default function Header() {
                 >
                   <div className="p-md border-b border-outline-variant">
                     <p className="font-label-md text-label-md text-on-surface truncate font-bold">{user.name}</p>
-                    <p className="text-[10px] text-on-surface-variant truncate capitalize">{user.role}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <p className="text-[10px] text-on-surface-variant truncate capitalize">{user.role}</p>
+                      {user.role === 'admin' && (
+                        <span className="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-error/15 text-error">Admin</span>
+                      )}
+                    </div>
                   </div>
                   <div className="py-sm">
                     <Link
@@ -336,6 +346,34 @@ export default function Header() {
                   <span className="material-symbols-outlined">add_box</span>
                   <span className="font-label-md text-label-md">Post a Job</span>
                 </Link>
+              )}
+              {user.role === 'admin' && (
+                <>
+                  <Link
+                    href="/jobs"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">work</span>
+                    <span className="font-label-md text-label-md">Manage Jobs</span>
+                  </Link>
+                  <Link
+                    href="/recruiter/create-job"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">add_box</span>
+                    <span className="font-label-md text-label-md">Create Job</span>
+                  </Link>
+                  <Link
+                    href="/applications"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">fact_check</span>
+                    <span className="font-label-md text-label-md">All Applications</span>
+                  </Link>
+                </>
               )}
               <Link
                 href="/profile"

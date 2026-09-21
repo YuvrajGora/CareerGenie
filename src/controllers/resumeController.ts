@@ -4,6 +4,7 @@ import ResumeAnalysis from '@/models/ResumeAnalysis';
 import User from '@/models/User';
 import { uploadToCloudinary } from '@/services/cloudinary';
 import { analyzeResume } from '@/services/gemini';
+import { extractTextFromBuffer } from '@/services/documentExtractor';
 import { recalculateUserMatchScores } from '@/services/matching';
 import JobMatch from '@/models/JobMatch';
 import { recordActivity } from '@/services/activity';
@@ -13,18 +14,59 @@ export async function uploadResume(req: any) {
     const user = req.user; // populated by auth middleware
     const body = await req.json();
 
-    const { file, text } = body; // file is base64 string, text is optional extracted text
+    const { file, text, fileName, mimeType } = body;
 
     if (!file) {
       return NextResponse.json({ error: 'Resume file data is required (base64 string).' }, { status: 400 });
     }
 
-    const extractedText = text || 'Extracted candidate resume details for user: ' + user.name;
+    const base64Data = typeof file === 'string' ? file.replace(/^data:[^;]+;base64,/, '') : '';
+    let fileBuffer: Buffer | null = null;
+    try {
+      fileBuffer = Buffer.from(base64Data, 'base64');
+    } catch {
+      return NextResponse.json({ error: 'Invalid base64 resume file data provided.' }, { status: 400 });
+    }
+
+    // Extract real text from provided text or uploaded file buffer
+    let extractedText = typeof text === 'string' && text.trim().length > 0 ? text.trim() : '';
+
+    if (!extractedText && fileBuffer) {
+      try {
+        extractedText = await extractTextFromBuffer(fileBuffer, mimeType, fileName);
+      } catch (extractErr) {
+        console.warn('Text extraction error from buffer:', extractErr);
+      }
+    }
+
+    const isPdf =
+      (mimeType && mimeType.includes('pdf')) ||
+      (fileName && fileName.toLowerCase().endsWith('.pdf')) ||
+      (fileBuffer && fileBuffer.subarray(0, 5).toString('ascii') === '%PDF-');
+
+    const documentData = isPdf
+      ? { base64Data, mimeType: 'application/pdf' }
+      : undefined;
+
+    // Fail safely if content is unreadable and no document data exists
+    if (!extractedText && !documentData) {
+      return NextResponse.json({
+        error: 'Unable to extract readable text from the uploaded document. Please upload a PDF, DOCX, or text file.'
+      }, { status: 400 });
+    }
 
     // 1. Upload file to Cloudinary (returns fallback mock URL if config is empty)
     const fileUrl = await uploadToCloudinary(file, 'resumes');
 
-    // 2. Save or update resume record
+    // 2. Analyze resume with Gemini using real extracted content or direct document data
+    const analysisResult = await analyzeResume(extractedText, undefined, documentData);
+
+    // Fallback representation for extractedText if purely parsed via multimodal PDF
+    if (!extractedText) {
+      extractedText = `Resume of ${user.name || 'Candidate'}. Career Level: ${analysisResult.careerLevel}. Skills: ${analysisResult.extractedSkills.join(', ')}.`;
+    }
+
+    // 3. Save or update resume record
     let resume = await Resume.findOne({ userId: user._id });
     if (resume) {
       resume.fileUrl = fileUrl;
@@ -43,9 +85,6 @@ export async function uploadResume(req: any) {
     }
 
     await recordActivity(user._id, 'Resume Uploaded', 'Uploaded new resume draft.');
-
-    // 3. Analyze resume text with Gemini
-    const analysisResult = await analyzeResume(extractedText);
 
     // 4. Save or update resume analysis report
     let analysis = await ResumeAnalysis.findOne({ resumeId: resume._id });

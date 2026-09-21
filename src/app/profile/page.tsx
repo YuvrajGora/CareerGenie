@@ -97,16 +97,30 @@ export default function ProfilePage() {
     }
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword || newPassword.length < 6) {
       alert('New password must be at least 6 characters.');
       return;
     }
-    setPasswordSuccess(true);
-    setCurrentPassword('');
-    setNewPassword('');
-    setTimeout(() => setPasswordSuccess(false), 3000);
+    try {
+      const res = await fetch('/api/users/change-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (res.ok) {
+        setPasswordSuccess(true);
+        setCurrentPassword('');
+        setNewPassword('');
+        setTimeout(() => setPasswordSuccess(false), 3000);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to change password.');
+      }
+    } catch (err) {
+      alert('Network error while changing password.');
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -114,25 +128,30 @@ export default function ProfilePage() {
       return;
     }
     try {
-      // Admin dashboard handles users, recruiter dashboard has status.
-      // Let's call deletion API
-      const res = await fetch(`/api/admin/users/${user._id}`, {
+      const res = await fetch('/api/users/account', {
         method: 'DELETE',
       });
       if (res.ok) {
         alert('Your account has been deleted successfully.');
-        logout();
+        await logout();
       } else {
-        // Fallback simulated success for demo purposes if route not available for normal users
-        alert('Account deletion request sent. Logging you out.');
-        logout();
+        const data = await res.json();
+        alert(data.error || 'Failed to delete account.');
       }
     } catch (err) {
-      logout();
+      alert('Network error while deleting account.');
     }
   };
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <span className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></span>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <div className="mt-24 max-w-max-width mx-auto px-lg pb-3xl flex flex-col lg:flex-row gap-lg text-left">

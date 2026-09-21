@@ -626,42 +626,64 @@ export default function ResumePage() {
     }
   };
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     setUploadProgress(true);
     setError(null);
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async () => {
-      try {
-        const base64 = reader.result as string;
-        const res = await fetch('/api/resumes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            file: base64,
-            text: `Extracted Resume: Candidate name ${user?.name}. Experienced in Full Stack Web Development using JavaScript, React, Node.js, Express, CSS, and database designs. Seeking engineering internship or new grad positions.`,
-          }),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setFileUrl(data.resume?.fileUrl);
-          setAnalysis(data.analysis);
-          setChatHistory((prev) => [
-            ...prev,
-            { sender: 'ai', message: `Resume processed successfully! I analyzed your profile and calculated an ATS optimization score of ${data.analysis?.atsScore || 80}%. What questions do you have?` }
-          ]);
-        } else {
-          const errData = await res.json();
-          setError(errData.error || 'Failed to upload/analyze resume.');
+    try {
+      let clientText: string | undefined = undefined;
+      // If it is a plain text or markdown file, read text directly client-side
+      if (
+        file.type === 'text/plain' ||
+        file.type === 'text/markdown' ||
+        file.name.endsWith('.txt') ||
+        file.name.endsWith('.md')
+      ) {
+        try {
+          clientText = await file.text();
+        } catch (e) {
+          console.warn('Could not read text client-side:', e);
         }
-      } catch (err) {
-        setError('Error uploading file. Please try again.');
-      } finally {
-        setUploadProgress(false);
       }
-    };
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const res = await fetch('/api/resumes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              file: base64,
+              text: clientText,
+              fileName: file.name,
+              mimeType: file.type || 'application/pdf',
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            setFileUrl(data.resume?.fileUrl);
+            setAnalysis(data.analysis);
+            setChatHistory((prev) => [
+              ...prev,
+              { sender: 'ai', message: `Resume processed successfully! I analyzed your profile and calculated an ATS optimization score of ${data.analysis?.atsScore || 80}%. What questions do you have?` }
+            ]);
+          } else {
+            const errData = await res.json();
+            setError(errData.error || 'Failed to upload/analyze resume.');
+          }
+        } catch (err) {
+          setError('Error uploading file. Please try again.');
+        } finally {
+          setUploadProgress(false);
+        }
+      };
+    } catch (outerErr) {
+      setError('Error reading file. Please try again.');
+      setUploadProgress(false);
+    }
   };
 
   const handleSendChatMessage = async (e: React.FormEvent) => {
@@ -698,7 +720,17 @@ export default function ResumePage() {
     }
   };
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <span className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></span>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'student') {
+    return null;
+  }
 
   return (
     <div className="pt-24 px-gutter pb-xl max-w-max-width mx-auto">

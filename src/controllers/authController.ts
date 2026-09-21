@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import User from '@/models/User';
-import { signToken } from '@/middleware/auth';
+import { signToken, ROLE_COOKIE_MAP, ROLE_HEADER_NAME, UserRole } from '@/middleware/auth';
 import { registerSchema, loginSchema } from '@/validations/validation';
 
 export async function register(req: NextRequest) {
   try {
     const body = await req.json();
     
+    // Explicit security check: forbid registering admin accounts publicly
+    if (body.role === 'admin') {
+      return NextResponse.json(
+        { error: 'Administrative accounts cannot be registered publicly.' },
+        { status: 403 }
+      );
+    }
+
     // Validate request body
     const validation = registerSchema.safeParse(body);
     if (!validation.success) {
@@ -47,10 +55,12 @@ export async function register(req: NextRequest) {
       user: userResponse
     }, { status: 201 });
 
-    // Set cookie
-    response.cookies.set('token', token, {
+    // Set role-specific cookie
+    const cookieName = ROLE_COOKIE_MAP[user.role as UserRole] || 'cg_student_token';
+    response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/'
     });
@@ -106,10 +116,12 @@ export async function login(req: NextRequest) {
       user: userResponse
     });
 
-    // Set cookie
-    response.cookies.set('token', token, {
+    // Set role-specific cookie
+    const cookieName = ROLE_COOKIE_MAP[user.role as UserRole] || 'cg_student_token';
+    response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/'
     });
@@ -118,6 +130,63 @@ export async function login(req: NextRequest) {
   } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error during login.' }, { status: 500 });
+  }
+}
+
+export async function logout(req: NextRequest) {
+  try {
+    let roleToLogout: UserRole | undefined;
+
+    const headerRole = req.headers.get(ROLE_HEADER_NAME)?.toLowerCase()?.trim();
+    if (headerRole === 'student' || headerRole === 'recruiter' || headerRole === 'admin') {
+      roleToLogout = headerRole;
+    }
+
+    if (!roleToLogout) {
+      try {
+        const body = await req.json();
+        if (body?.role === 'student' || body?.role === 'recruiter' || body?.role === 'admin') {
+          roleToLogout = body.role;
+        }
+      } catch (_) {
+        // No JSON body provided
+      }
+    }
+
+    const response = NextResponse.json({
+      message: roleToLogout
+        ? `Successfully logged out of ${roleToLogout} session.`
+        : 'Successfully logged out.',
+    });
+
+    if (roleToLogout) {
+      const cookieName = ROLE_COOKIE_MAP[roleToLogout];
+      response.cookies.set(cookieName, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 0,
+        expires: new Date(0),
+        path: '/',
+      });
+    } else {
+      // Clear all role cookies if no specific active role was supplied
+      Object.values(ROLE_COOKIE_MAP).forEach((cookieName) => {
+        response.cookies.set(cookieName, '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 0,
+          expires: new Date(0),
+          path: '/',
+        });
+      });
+    }
+
+    return response;
+  } catch (error: any) {
+    console.error('Logout error:', error);
+    return NextResponse.json({ error: 'Internal server error during logout.' }, { status: 500 });
   }
 }
 

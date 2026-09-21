@@ -3,7 +3,7 @@ import dbConnect from '@/lib/db';
 
 export async function recordActivity(
   userId: any, 
-  activityType: 'Resume Uploaded' | 'Resume Analyzed' | 'Job Applied' | 'Application Accepted' | 'Application Rejected' | 'Profile Updated', 
+  activityType: 'Resume Uploaded' | 'Resume Analyzed' | 'Job Applied' | 'Application Accepted' | 'Application Rejected' | 'Profile Updated' | 'Password Changed', 
   details?: string, 
   metadata?: Record<string, any>
 ) {

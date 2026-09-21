@@ -29,14 +29,23 @@ export default function Sidebar() {
         <Link href="/dashboard">
           <h1 className="font-headline-xl text-headline-xl font-black text-primary cursor-pointer">CareerGenie</h1>
         </Link>
-        <p className="font-label-sm text-label-sm text-on-surface-variant">AI Recruitment Hub</p>
+        <div className="flex items-center justify-between">
+          <p className="font-label-sm text-label-sm text-on-surface-variant">AI Recruitment Hub</p>
+          {user.role === 'admin' && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-error/15 text-error">
+              Admin
+            </span>
+          )}
+        </div>
       </div>
 
       <nav className="flex-1 space-y-1">
         {/* Common Dashboard gateway */}
         <Link href="/dashboard" className={linkClass('/dashboard')}>
           <span className="material-symbols-outlined">dashboard</span>
-          <span className="font-label-md text-label-md">Dashboard</span>
+          <span className="font-label-md text-label-md">
+            {user.role === 'admin' ? 'Admin Overview' : 'Dashboard'}
+          </span>
         </Link>
 
         {/* Student specific links */}
@@ -63,6 +72,24 @@ export default function Sidebar() {
             <Link href="/recruiter/create-job" className={linkClass('/recruiter/create-job')}>
               <span className="material-symbols-outlined">add_box</span>
               <span className="font-label-md text-label-md">Post a Job</span>
+            </Link>
+          </>
+        )}
+
+        {/* Admin specific links */}
+        {user.role === 'admin' && (
+          <>
+            <Link href="/jobs" className={linkClass('/jobs')}>
+              <span className="material-symbols-outlined">work</span>
+              <span className="font-label-md text-label-md">Manage Jobs</span>
+            </Link>
+            <Link href="/recruiter/create-job" className={linkClass('/recruiter/create-job')}>
+              <span className="material-symbols-outlined">add_box</span>
+              <span className="font-label-md text-label-md">Create Job</span>
+            </Link>
+            <Link href="/applications" className={linkClass('/applications')}>
+              <span className="material-symbols-outlined">fact_check</span>
+              <span className="font-label-md text-label-md">All Applications</span>
             </Link>
           </>
         )}

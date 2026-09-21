@@ -42,9 +42,13 @@ export interface JobRecommendationResult {
 /**
  * Parses and analyzes resume text using Google Gemini AI, with a fallback mock mechanism.
  */
-export async function analyzeResume(resumeText: string, targetRole?: string): Promise<ResumeAnalysisResult> {
-  if (!resumeText || resumeText.trim().length === 0) {
-    throw new Error('Resume text content is empty.');
+export async function analyzeResume(
+  resumeText: string,
+  targetRole?: string,
+  documentData?: { base64Data: string; mimeType: string }
+): Promise<ResumeAnalysisResult> {
+  if ((!resumeText || resumeText.trim().length === 0) && !documentData) {
+    throw new Error('Resume text content or document data is required.');
   }
 
   const client = getAiClient();
@@ -52,14 +56,14 @@ export async function analyzeResume(resumeText: string, targetRole?: string): Pr
   // Fallback check
   if (!client) {
     console.info('Using Gemini Mock Fallback for Resume Analysis.');
-    return getMockAnalysis(resumeText, targetRole);
+    return getMockAnalysis(resumeText || 'Candidate Resume Profile', targetRole);
   }
 
   try {
     const rolePrompt = targetRole ? `Evaluate the candidate's resume specifically targeting the role: "${targetRole}". Make sure missingSkills, strengths, weaknesses, and suggestions are tailored to this target role.` : '';
     const prompt = `
       You are an expert AI Resume Analyzer and ATS Optimization specialist. 
-      Analyze the following extracted text from a candidate's resume and generate a detailed report.
+      Analyze the candidate's resume and generate a detailed report.
       
       ${rolePrompt}
       
@@ -77,14 +81,22 @@ export async function analyzeResume(resumeText: string, targetRole?: string): Pr
       }
 
       Do not include any markdown format blocks (like \`\`\`json) or text before/after the JSON. Just return the raw JSON content.
-
-      Resume Text:
-      "${resumeText.replace(/"/g, '\\"')}"
+      ${resumeText ? `\nResume Text:\n"${resumeText.replace(/"/g, '\\"')}"` : ''}
     `;
+
+    const contents: any[] = [prompt];
+    if (documentData && documentData.base64Data) {
+      contents.push({
+        inlineData: {
+          data: documentData.base64Data,
+          mimeType: documentData.mimeType || 'application/pdf',
+        },
+      });
+    }
 
     const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt,
+      contents,
       config: {
         responseMimeType: 'application/json',
       }

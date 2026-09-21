@@ -92,7 +92,17 @@ export default function CreateJobPage() {
     }
   };
 
-  if (authLoading) return null;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <span className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></span>
+      </div>
+    );
+  }
+
+  if (!user || (user.role !== 'recruiter' && user.role !== 'admin')) {
+    return null;
+  }
 
   return (
     <div className="mt-24 max-w-[42rem] mx-auto px-lg pb-3xl text-left">

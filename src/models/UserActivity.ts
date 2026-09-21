@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IUserActivity extends Document {
   userId: mongoose.Types.ObjectId;
-  activityType: 'Resume Uploaded' | 'Resume Analyzed' | 'Job Applied' | 'Application Accepted' | 'Application Rejected' | 'Profile Updated';
+  activityType: 'Resume Uploaded' | 'Resume Analyzed' | 'Job Applied' | 'Application Accepted' | 'Application Rejected' | 'Profile Updated' | 'Password Changed';
   details?: string;
   metadata?: Record<string, any>;
   createdAt: Date;
@@ -19,7 +19,8 @@ const UserActivitySchema = new Schema<IUserActivity>({
       'Job Applied', 
       'Application Accepted', 
       'Application Rejected', 
-      'Profile Updated'
+      'Profile Updated',
+      'Password Changed'
     ] 
   },
   details: { type: String },

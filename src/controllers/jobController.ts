@@ -206,7 +206,11 @@ export async function updateJob(req: any, { params }: { params: { id: string } }
     }
 
     // Verify ownership or admin role
-    if (job.recruiterId.toString() !== user._id.toString() && user.role !== 'admin') {
+    const jobRecruiterId = job.recruiterId?.toString();
+    const isOwner = Boolean(jobRecruiterId && user?._id && jobRecruiterId === user._id.toString());
+    const isAdmin = user?.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden. You do not have permission to modify this listing.' }, { status: 403 });
     }
 
@@ -243,7 +247,11 @@ export async function deleteJob(req: any, { params }: { params: { id: string } }
     }
 
     // Verify ownership or admin role
-    if (job.recruiterId.toString() !== user._id.toString() && user.role !== 'admin') {
+    const jobRecruiterId = job.recruiterId?.toString();
+    const isOwner = Boolean(jobRecruiterId && user?._id && jobRecruiterId === user._id.toString());
+    const isAdmin = user?.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden. You do not have permission to delete this listing.' }, { status: 403 });
     }
 
