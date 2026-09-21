@@ -857,4 +857,210 @@ export async function suggestActionVerbs(bulletPoint: string): Promise<string[]>
   }
 }
 
+export interface RiskExplanationPayload {
+  whatHappened: string;
+  whyItMatters: string;
+  aiExplanation: string;
+  recommendedActions: Array<{
+    actionId: string;
+    title: string;
+    rationale: string;
+    urgency: 'immediate' | 'short_term' | 'strategic';
+    status: 'pending';
+  }>;
+}
+
+/**
+ * Generates an explainable HR synthesis and recommended actions for a deterministically detected risk.
+ * Never decides the score; explains the empirical evidence provided.
+ */
+export async function generateWorkforceRiskExplanation(
+  employee: { name: string; roleTitle: string; department: string; level?: string },
+  riskType: string,
+  severity: string,
+  score: number,
+  evidence: Array<{ signalType: string; metric: string; observedValue: string; benchmark: string; significance: string }>
+): Promise<RiskExplanationPayload> {
+  const client = getAiClient();
+
+  // Helper for deterministic fallback when Gemini is unavailable
+  const getFallback = (): RiskExplanationPayload => {
+    const formattedRisk = riskType.replace(/_/g, ' ').toUpperCase();
+    const metricsList = evidence.map((e) => `${e.metric} (${e.observedValue} vs. benchmark ${e.benchmark})`).join('; ');
+
+    const fallbackActions: RiskExplanationPayload['recommendedActions'] = [];
+
+    if (riskType === 'burnout') {
+      fallbackActions.push(
+        {
+          actionId: 'ACT-BO-01',
+          title: 'Immediate On-Call & Overtime Load Rebalancing',
+          rationale: 'Reassign secondary on-call responsibilities to bring weekly overtime under department baseline.',
+          urgency: 'immediate',
+          status: 'pending'
+        },
+        {
+          actionId: 'ACT-BO-02',
+          title: 'Mandatory Wellness PTO Scheduling',
+          rationale: 'Schedule designated recharge days to prevent acute fatigue and retain critical technical capability.',
+          urgency: 'short_term',
+          status: 'pending'
+        },
+        {
+          actionId: 'ACT-BO-03',
+          title: 'Sprint Capacity & Resource Reallocation',
+          rationale: 'Adjust quarterly milestone commitments and assess pairing or contractor support.',
+          urgency: 'strategic',
+          status: 'pending'
+        }
+      );
+    } else if (riskType === 'attrition') {
+      fallbackActions.push(
+        {
+          actionId: 'ACT-AT-01',
+          title: 'Conduct Structured Retention 1-on-1',
+          rationale: 'Direct manager and People Ops should discuss recent satisfaction signals, blockers, and aspirations.',
+          urgency: 'immediate',
+          status: 'pending'
+        },
+        {
+          actionId: 'ACT-AT-02',
+          title: 'Out-of-Band Compensation & Level Benchmark Review',
+          rationale: 'Review current compensation against market 75th percentile and verify level progression eligibility.',
+          urgency: 'short_term',
+          status: 'pending'
+        },
+        {
+          actionId: 'ACT-AT-03',
+          title: 'High-Impact Project Ownership Realignment',
+          rationale: 'Assign key ownership on upcoming strategic initiatives to reinforce long-term organizational commitment.',
+          urgency: 'strategic',
+          status: 'pending'
+        }
+      );
+    } else if (riskType === 'skill_stagnation') {
+      fallbackActions.push(
+        {
+          actionId: 'ACT-SK-01',
+          title: 'Skill Gap Diagnostic & Career Mapping',
+          rationale: 'Identify target competencies needed for next level and agree on specific growth objectives.',
+          urgency: 'immediate',
+          status: 'pending'
+        },
+        {
+          actionId: 'ACT-SK-02',
+          title: 'Learning Stipend & Training Plan Allocation',
+          rationale: 'Sponsor structured certifications or specialized workshops in missing core domains.',
+          urgency: 'short_term',
+          status: 'pending'
+        },
+        {
+          actionId: 'ACT-SK-03',
+          title: 'Cross-Department Mentorship Pairing',
+          rationale: 'Pair with senior technical lead for weekly architecture shadowing.',
+          urgency: 'strategic',
+          status: 'pending'
+        }
+      );
+    } else {
+      // Disengagement fallback
+      fallbackActions.push(
+        {
+          actionId: 'ACT-DE-01',
+          title: 'Pulse Feedback Discovery Session',
+          rationale: 'Hold an informal check-in to uncover root causes of recent engagement drops.',
+          urgency: 'immediate',
+          status: 'pending'
+        },
+        {
+          actionId: 'ACT-DE-02',
+          title: 'Meeting Cadence & Collaboration Audit',
+          rationale: 'Audit weekly schedule to remove redundant meetings and restore focus time.',
+          urgency: 'short_term',
+          status: 'pending'
+        },
+        {
+          actionId: 'ACT-DE-03',
+          title: 'Quarterly OKR Realignment',
+          rationale: 'Re-anchor personal quarterly goals to high-visibility product milestones.',
+          urgency: 'strategic',
+          status: 'pending'
+        }
+      );
+    }
+
+    return {
+      whatHappened: `${severity.toUpperCase()} ${formattedRisk} detected for ${employee.name} (${employee.roleTitle}, ${employee.department}).`,
+      whyItMatters: `Observed telemetry indicates severe deviation from departmental norms that poses immediate risk to team delivery and retention.`,
+      aiExplanation: `Multi-signal analysis detected significant anomalies across: ${metricsList}. With a deterministic risk index of ${score}/100, prompt managerial intervention is recommended.`,
+      recommendedActions: fallbackActions
+    };
+  };
+
+  if (!client) {
+    return getFallback();
+  }
+
+  try {
+    const evidenceSummary = evidence.map((e) => `- ${e.signalType.toUpperCase()} | ${e.metric}: ${e.observedValue} (Benchmark: ${e.benchmark}, Significance: ${e.significance})`).join('\n');
+
+    const prompt = `
+      You are an expert HR Intelligence & Workforce Analytics Specialist.
+      Analyze the following DETERMINISTICALLY DETECTED workforce risk and its concrete empirical evidence.
+
+      Employee: ${employee.name}
+      Role: ${employee.roleTitle} (Department: ${employee.department}, Level: ${employee.level})
+      Risk Category: ${riskType}
+      Calculated Severity: ${severity} (Score: ${score}/100)
+
+      Empirical Evidence:
+      ${evidenceSummary}
+
+      Produce a professional, human-readable diagnosis conforming strictly to this JSON structure:
+      {
+        "whatHappened": "1-2 sentences summarizing what was observed in the data",
+        "whyItMatters": "1-2 sentences explaining organizational, team, or retention impact",
+        "aiExplanation": "A cohesive 2-3 sentence diagnostic synthesis connecting the evidence to operational risk",
+        "recommendedActions": [
+          {
+            "actionId": "unique string like ACT-01",
+            "title": "Clear action title",
+            "rationale": "Why this specific action helps",
+            "urgency": "immediate" or "short_term" or "strategic",
+            "status": "pending"
+          }
+        ]
+      }
+
+      Provide 2 to 3 actionable, pragmatic recommendations.
+      Do not invent numbers or metrics outside of the provided empirical evidence.
+      Return ONLY raw JSON, with no markdown code blocks.
+    `;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      }
+    });
+
+    const text = response.text;
+    if (!text) return getFallback();
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText) as RiskExplanationPayload;
+
+    if (!result.whatHappened || !result.whyItMatters || !Array.isArray(result.recommendedActions)) {
+      return getFallback();
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Failed to generate Gemini risk explanation, using deterministic fallback:', error);
+    return getFallback();
+  }
+}
+
+
 

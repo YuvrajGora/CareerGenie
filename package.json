@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:auth": "tsx scripts/verify-multitab-auth.ts",
+    "test:hr-reasoning": "tsx scripts/verify-phase2-reasoning.ts",
     "seed:hr": "tsx scripts/seed-hr-data.ts"
   },
   "dependencies": {

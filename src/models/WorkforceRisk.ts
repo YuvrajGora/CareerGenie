@@ -24,6 +24,8 @@ export interface IWorkforceRisk extends Document {
   severity: 'low' | 'medium' | 'high' | 'critical';
   score: number;
   aiExplanation: string;
+  whatHappened?: string;
+  whyItMatters?: string;
   evidence: IRiskEvidence[];
   recommendedActions: IRiskAction[];
   status: 'active' | 'mitigated' | 'resolved';
@@ -70,6 +72,8 @@ const WorkforceRiskSchema = new Schema<IWorkforceRisk>({
   },
   score: { type: Number, required: true, min: 0, max: 100 },
   aiExplanation: { type: String, required: true },
+  whatHappened: { type: String },
+  whyItMatters: { type: String },
   evidence: { type: [RiskEvidenceSchema], default: [] },
   recommendedActions: { type: [RiskActionSchema], default: [] },
   status: { 

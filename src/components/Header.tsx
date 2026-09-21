@@ -338,17 +338,35 @@ export default function Header() {
                 </>
               )}
               {user.role === 'recruiter' && (
-                <Link
-                  href="/recruiter/create-job"
-                  onClick={() => setShowMobileMenu(false)}
-                  className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
-                >
-                  <span className="material-symbols-outlined">add_box</span>
-                  <span className="font-label-md text-label-md">Post a Job</span>
-                </Link>
+                <>
+                  <Link
+                    href="/hr/risks"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">radar</span>
+                    <span className="font-label-md text-label-md">Risk & Retention Radar</span>
+                  </Link>
+                  <Link
+                    href="/recruiter/create-job"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">add_box</span>
+                    <span className="font-label-md text-label-md">Post a Job</span>
+                  </Link>
+                </>
               )}
               {user.role === 'admin' && (
                 <>
+                  <Link
+                    href="/hr/risks"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">radar</span>
+                    <span className="font-label-md text-label-md">Risk & Retention Radar</span>
+                  </Link>
                   <Link
                     href="/jobs"
                     onClick={() => setShowMobileMenu(false)}
