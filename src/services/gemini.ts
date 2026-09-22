@@ -1239,6 +1239,265 @@ Official Text: "${s.sourceText}"`).join('\n\n');
   }
 }
 
+// ============================================================================
+// ADAPTIVE ONBOARDING ORCHESTRATOR
+// ============================================================================
 
+export interface AdaptivePlanMilestoneSuggestion {
+  milestoneId: string;
+  title: string;
+  description: string;
+  category: 'compliance' | 'technical_setup' | 'team_integration' | 'role_training';
+  dueDay: number;
+  resourceLink?: string;
+}
 
+export interface AdaptivePlanPayload {
+  roleTitle: string;
+  department: string;
+  level: string;
+  aiGuidanceNotes: string;
+  targetCompletionDays: number;
+  milestones: AdaptivePlanMilestoneSuggestion[];
+}
 
+export interface AdaptiveDiagnosisPayload {
+  diagnosis: string;
+  whyItMatters: string;
+  suggestedAdjustments: Array<{
+    title: string;
+    rationale: string;
+    priority: 'low' | 'medium' | 'high';
+  }>;
+}
+
+/**
+ * Generates an individualized adaptive onboarding plan synthesizing employee attributes,
+ * verified competencies, and relevant corporate policies.
+ * Falls back to deterministic templates if Gemini is unavailable or fails.
+ */
+export async function generateAdaptiveOnboardingPlan(
+  employee: {
+    name: string;
+    roleTitle: string;
+    department: string;
+    level: string;
+    skills?: Array<{ name: string; proficiency?: string; verified?: boolean }>;
+    managerName?: string;
+    location?: string;
+  },
+  policies: Array<{ policyCode: string; title: string; category: string }>,
+  deterministicFallbackMilestones: AdaptivePlanMilestoneSuggestion[]
+): Promise<AdaptivePlanPayload> {
+  const getFallback = (): AdaptivePlanPayload => ({
+    roleTitle: employee.roleTitle,
+    department: employee.department,
+    level: employee.level,
+    aiGuidanceNotes: `Standard deterministic onboarding curriculum for ${employee.department} (${employee.level} level). Focus on team alignment, core tooling, and departmental milestone velocity.`,
+    targetCompletionDays: 90,
+    milestones: deterministicFallbackMilestones
+  });
+
+  const client = getAiClient();
+  if (!client) {
+    return getFallback();
+  }
+
+  try {
+    const verifiedSkillsStr = employee.skills && employee.skills.length > 0
+      ? employee.skills.map((s) => `${s.name} (${s.proficiency || 'intermediate'})`).join(', ')
+      : 'None recorded';
+
+    const policySummary = policies.length > 0
+      ? policies.map((p) => `- ${p.policyCode}: ${p.title} (${p.category})`).join('\n')
+      : 'Standard company policies';
+
+    const prompt = `
+      You are an expert HR Talent Onboarding & People Operations Architect.
+      Create an individualized, high-impact 30-60-90 day Adaptive Onboarding Roadmap for a new hire.
+
+      EMPLOYEE PROFILE:
+      - Name: ${employee.name}
+      - Role Title: ${employee.roleTitle}
+      - Department: ${employee.department}
+      - Level: ${employee.level}
+      - Verified Skills: ${verifiedSkillsStr}
+      - Location: ${employee.location || 'Remote'}
+      - Direct Manager: ${employee.managerName || 'Department Lead'}
+
+      RELEVANT COMPANY POLICIES:
+      ${policySummary}
+
+      MANDATORY RULES:
+      1. Ground your roadmap STRICTLY in the employee's role, department, seniority level, and existing skills.
+      2. If the employee already has verified skills, do not prescribe beginner training for those exact skills; instead, design milestones that apply them to company architecture or advance to higher tier topics.
+      3. Categorize every milestone into exactly one of: 'compliance', 'technical_setup', 'team_integration', 'role_training'.
+      4. Due days must be realistic integers:
+         - compliance: day 1 to 3
+         - technical_setup: day 1 to 7
+         - team_integration: day 7 to 30
+         - role_training: day 14 to 90
+      5. Include between 5 and 8 cohesive, sequential milestones covering Days 1 through 90.
+      6. Do NOT hallucinate external compensation, unverified personal facts, or non-existent company systems.
+      7. Return ONLY a raw JSON object conforming strictly to this format:
+      {
+        "roleTitle": "${employee.roleTitle}",
+        "department": "${employee.department}",
+        "level": "${employee.level}",
+        "aiGuidanceNotes": "2-3 sentences of strategic onboarding guidance summarizing ramp focus, expected first milestone, and key stakeholder checkpoints.",
+        "targetCompletionDays": 90,
+        "milestones": [
+          {
+            "milestoneId": "M-01",
+            "title": "Clear concise title",
+            "description": "Concrete action description and success criteria",
+            "category": "compliance" | "technical_setup" | "team_integration" | "role_training",
+            "dueDay": 1,
+            "resourceLink": "optional reference code like POL-REM-2026 or doc name"
+          }
+        ]
+      }
+    `;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      }
+    });
+
+    const text = response.text;
+    if (!text) return getFallback();
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText) as AdaptivePlanPayload;
+
+    if (!Array.isArray(result.milestones) || result.milestones.length === 0 || !result.aiGuidanceNotes) {
+      return getFallback();
+    }
+
+    const validCategories = new Set(['compliance', 'technical_setup', 'team_integration', 'role_training']);
+    const sanitizedMilestones = result.milestones.map((m, idx) => ({
+      milestoneId: m.milestoneId || `M-0${idx + 1}`,
+      title: m.title || `Milestone ${idx + 1}`,
+      description: m.description || 'Complete assigned departmental onboarding task.',
+      category: validCategories.has(m.category) ? (m.category as any) : 'role_training',
+      dueDay: typeof m.dueDay === 'number' && m.dueDay > 0 ? m.dueDay : (idx + 1) * 10,
+      resourceLink: m.resourceLink || undefined
+    }));
+
+    return {
+      roleTitle: result.roleTitle || employee.roleTitle,
+      department: result.department || employee.department,
+      level: result.level || employee.level,
+      aiGuidanceNotes: result.aiGuidanceNotes,
+      targetCompletionDays: result.targetCompletionDays || 90,
+      milestones: sanitizedMilestones
+    };
+  } catch (error) {
+    console.error('Failed to generate Gemini adaptive onboarding plan, using fallback:', error);
+    return getFallback();
+  }
+}
+
+/**
+ * Analyzes current onboarding velocity, overdue milestones, and pace anomalies.
+ * Generates an explainable diagnosis and tailored adjustments.
+ * Falls back to deterministic diagnosis if Gemini is unavailable or fails.
+ */
+export async function analyzeOnboardingVelocityAndAdapt(
+  employee: {
+    name: string;
+    roleTitle: string;
+    department: string;
+    level: string;
+  },
+  currentPlan: {
+    overallProgress: number;
+    velocityScore: number;
+    status: string;
+    daysSinceStart: number;
+    overdueMilestones: Array<{
+      milestoneId: string;
+      title: string;
+      category: string;
+      dueDay: number;
+      daysOverdue: number;
+      notes?: string;
+    }>;
+    completedMilestonesCount: number;
+    totalMilestonesCount: number;
+  },
+  deterministicFallback: AdaptiveDiagnosisPayload
+): Promise<AdaptiveDiagnosisPayload> {
+  const client = getAiClient();
+  if (!client) {
+    return deterministicFallback;
+  }
+
+  try {
+    const overdueSummary = currentPlan.overdueMilestones.length > 0
+      ? currentPlan.overdueMilestones.map((m) => `- [${m.milestoneId}] "${m.title}" (${m.category}) - ${m.daysOverdue} days overdue. Notes: ${m.notes || 'None'}`).join('\n')
+      : 'None. All milestones due to date are completed.';
+
+    const prompt = `
+      You are an expert HR Onboarding Intervention & Ramp Specialist.
+      Analyze the empirical onboarding progress and velocity for this employee, and recommend targeted operational adaptations.
+
+      EMPLOYEE:
+      - Name: ${employee.name}
+      - Role: ${employee.roleTitle} (${employee.department}, ${employee.level})
+
+      CURRENT ONBOARDING TELEMETRY:
+      - Days Since Start Date: ${currentPlan.daysSinceStart}
+      - Overall Completion: ${currentPlan.overallProgress}% (${currentPlan.completedMilestonesCount}/${currentPlan.totalMilestonesCount} milestones completed)
+      - Deterministic Velocity Index: ${currentPlan.velocityScore}/100
+      - Current Status: ${currentPlan.status.toUpperCase()}
+      
+      OVERDUE / DELAYED MILESTONES:
+      ${overdueSummary}
+
+      INSTRUCTIONS:
+      1. Synthesize an objective, professional diagnosis explaining why the employee is on-track or delayed.
+      2. Explain why this matters for early retention, team velocity, and 90-day ramp.
+      3. Recommend 2 to 3 pragmatic, actionable adjustments (e.g. mentor pairing, scope adjustment, unblocking IT access, schedule re-alignment).
+      4. Do NOT hallucinate negative performance reviews or invent unstated blockers.
+      5. Return ONLY a raw JSON object conforming strictly to this format:
+      {
+        "diagnosis": "2-3 sentences explaining the observed progress, velocity score, and specific delay causes if any.",
+        "whyItMatters": "1-2 sentences on operational and retention impact.",
+        "suggestedAdjustments": [
+          {
+            "title": "Clear action title",
+            "rationale": "Why this specific intervention resolves the delay or reinforces velocity",
+            "priority": "low" | "medium" | "high"
+          }
+        ]
+      }
+    `;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      }
+    });
+
+    const text = response.text;
+    if (!text) return deterministicFallback;
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText) as AdaptiveDiagnosisPayload;
+
+    if (!result.diagnosis || !result.whyItMatters || !Array.isArray(result.suggestedAdjustments)) {
+      return deterministicFallback;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Failed to generate Gemini velocity diagnosis, using deterministic fallback:', error);
+    return deterministicFallback;
+  }
+}

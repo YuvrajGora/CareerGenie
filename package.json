@@ -11,6 +11,7 @@
     "test:auth": "tsx scripts/verify-multitab-auth.ts",
     "test:hr-reasoning": "tsx scripts/verify-phase2-reasoning.ts",
     "test:hr-policy": "tsx scripts/verify-phase2-policy.ts",
+    "test:hr-onboarding": "tsx scripts/verify-phase2-onboarding.ts",
     "seed:hr": "tsx scripts/seed-hr-data.ts"
   },
   "dependencies": {
