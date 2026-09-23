@@ -2048,3 +2048,211 @@ export async function synthesizeInterviewEvaluation(
   }
 }
 
+export interface RecruitmentMatchExplanationResult {
+  verdict: 'strong_match' | 'qualified_match' | 'borderline' | 'not_recommended';
+  executiveSummary: string;
+  keyStrengths: string[];
+  identifiedGaps: string[];
+  experienceAssessment: string;
+  recommendedInterviewFocus: string[];
+}
+
+/**
+ * Explains a candidate's deterministic match score against a job using Google Gemini.
+ * CRITICAL AI SAFETY:
+ * - Gemini must NOT calculate or alter match scores; the deterministic scores provided are authoritative.
+ * - Explains strictly based on supplied evidence (resume excerpt, verified skills, and requirements).
+ * - Falls back deterministically if Gemini is offline, unconfigured, or errors.
+ */
+export async function generateRecruitmentMatchExplanation(
+  jobData: {
+    title: string;
+    company: string;
+    description: string;
+    requiredSkills: string[];
+    experience: number;
+    location?: string;
+  },
+  candidateData: {
+    name: string;
+    careerLevel: string;
+    yearsOfExperience: number;
+    education: string;
+    skills: string[];
+    resumeText?: string;
+  },
+  matchScores: {
+    matchScore: number;
+    skillsMatch: number;
+    experienceMatch: number;
+    educationMatch: number;
+  }
+): Promise<RecruitmentMatchExplanationResult> {
+  const candSkills = candidateData.skills || [];
+  const reqSkills = jobData.requiredSkills || [];
+
+  const matchedSkills = reqSkills.filter(req =>
+    candSkills.some(cs => cs.toLowerCase().trim() === req.toLowerCase().trim())
+  );
+  const missingSkills = reqSkills.filter(req =>
+    !candSkills.some(cs => cs.toLowerCase().trim() === req.toLowerCase().trim())
+  );
+
+  // Deterministic verdict mapping based on authoritative mathematical score
+  let fallbackVerdict: 'strong_match' | 'qualified_match' | 'borderline' | 'not_recommended' = 'borderline';
+  if (matchScores.matchScore >= 85) {
+    fallbackVerdict = 'strong_match';
+  } else if (matchScores.matchScore >= 70) {
+    fallbackVerdict = 'qualified_match';
+  } else if (matchScores.matchScore >= 55) {
+    fallbackVerdict = 'borderline';
+  } else {
+    fallbackVerdict = 'not_recommended';
+  }
+
+  // Deterministic strengths
+  const fallbackStrengths: string[] = [];
+  if (matchedSkills.length > 0) {
+    fallbackStrengths.push(`Matches ${matchedSkills.length} of ${reqSkills.length} required skills: ${matchedSkills.join(', ')}.`);
+  }
+  if (candidateData.yearsOfExperience >= jobData.experience) {
+    fallbackStrengths.push(
+      `Exceeds minimum experience threshold (${candidateData.yearsOfExperience} years vs ${jobData.experience} required).`
+    );
+  } else if (candidateData.yearsOfExperience > 0) {
+    fallbackStrengths.push(`Has ${candidateData.yearsOfExperience} years of applicable professional experience.`);
+  }
+  if (candidateData.education) {
+    fallbackStrengths.push(`Relevant academic background: ${candidateData.education}.`);
+  }
+  if (fallbackStrengths.length === 0) {
+    fallbackStrengths.push('Candidate demonstrates foundational technical proficiency.');
+  }
+
+  // Deterministic gaps
+  const fallbackGaps: string[] = [];
+  if (missingSkills.length > 0) {
+    fallbackGaps.push(`Missing core job requirements: ${missingSkills.join(', ')}.`);
+  }
+  if (candidateData.yearsOfExperience < jobData.experience) {
+    const diff = jobData.experience - candidateData.yearsOfExperience;
+    fallbackGaps.push(
+      `Experience shortfall of ${diff} year${diff > 1 ? 's' : ''} compared to the role specification (${candidateData.yearsOfExperience} yrs vs ${jobData.experience} yrs required).`
+    );
+  }
+  if (fallbackGaps.length === 0) {
+    fallbackGaps.push('No critical technical gaps identified relative to baseline requirements.');
+  }
+
+  // Deterministic experience assessment
+  const fallbackExpAssessment = candidateData.yearsOfExperience >= jobData.experience
+    ? `The candidate possesses ${candidateData.yearsOfExperience} years of experience at the ${candidateData.careerLevel} tier, comfortably meeting the ${jobData.experience}-year requirement for ${jobData.title}.`
+    : `The candidate possesses ${candidateData.yearsOfExperience} years of experience, which is below the target ${jobData.experience} years specified for this ${jobData.title} opening.`;
+
+  // Deterministic interview focus
+  const fallbackInterviewFocus: string[] = [];
+  if (missingSkills.length > 0) {
+    fallbackInterviewFocus.push(`Evaluate familiarity and adjacent capability in ${missingSkills.slice(0, 2).join(' and ')}.`);
+  }
+  if (matchedSkills.length > 0) {
+    fallbackInterviewFocus.push(`Deep-dive technical assessment into real-world production projects using ${matchedSkills.slice(0, 2).join(' and ')}.`);
+  }
+  fallbackInterviewFocus.push(`Assess problem-solving methodology and technical communication for ${jobData.title} responsibilities.`);
+
+  const deterministicFallback: RecruitmentMatchExplanationResult = {
+    verdict: fallbackVerdict,
+    executiveSummary: `${candidateData.name} achieved a deterministic match score of ${matchScores.matchScore}% for "${jobData.title}" at ${jobData.company}. Skills match is ${matchScores.skillsMatch}% (${matchedSkills.length}/${reqSkills.length} core competencies), experience match is ${matchScores.experienceMatch}%, and education match is ${matchScores.educationMatch}%.`,
+    keyStrengths: fallbackStrengths,
+    identifiedGaps: fallbackGaps,
+    experienceAssessment: fallbackExpAssessment,
+    recommendedInterviewFocus: fallbackInterviewFocus
+  };
+
+  const client = getAiClient();
+  if (!client) {
+    return deterministicFallback;
+  }
+
+  try {
+    const prompt = `
+You are a senior recruitment intelligence analyst for CareerGenie.
+Your task is to explain and substantiate the deterministic match score calculated for a candidate against a job specification.
+
+CRITICAL INSTRUCTIONS:
+1. DO NOT CALCULATE OR MODIFY THE MATCH SCORES. The scores provided below are mathematically authoritative and final.
+2. DO NOT invent skills, certifications, work history, achievements, or requirements not present in the provided candidate or job data.
+3. Your role is strictly to explain the evidence connecting the candidate's profile to the job requirements.
+4. Output MUST strictly adhere to the requested JSON format.
+
+JOB SPECIFICATION:
+- Title: ${jobData.title}
+- Company: ${jobData.company}
+- Location: ${jobData.location || 'Remote'}
+- Required Experience: ${jobData.experience} years
+- Required Skills: ${reqSkills.join(', ')}
+- Description: ${jobData.description}
+
+CANDIDATE PROFILE:
+- Name: ${candidateData.name}
+- Career Level: ${candidateData.careerLevel}
+- Experience: ${candidateData.yearsOfExperience} years
+- Education: ${candidateData.education}
+- Verified Skills: ${candSkills.join(', ')}
+- Resume Excerpt: "${(candidateData.resumeText || '').slice(0, 1000)}"
+
+DETERMINISTIC AUTHORITATIVE SCORES (DO NOT CHANGE):
+- Overall Match Score: ${matchScores.matchScore}%
+- Skills Match: ${matchScores.skillsMatch}% (Matched: ${matchedSkills.join(', ') || 'None'} | Missing: ${missingSkills.join(', ') || 'None'})
+- Experience Match: ${matchScores.experienceMatch}% (${candidateData.yearsOfExperience} yrs vs ${jobData.experience} yrs required)
+- Education Match: ${matchScores.educationMatch}%
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "verdict": "strong_match" | "qualified_match" | "borderline" | "not_recommended",
+  "executiveSummary": "Concise 2-3 sentence overview explaining how well the candidate aligns with the role based strictly on the factual scores and skills.",
+  "keyStrengths": ["List of 2-4 verified candidate strengths relative to the job requirements"],
+  "identifiedGaps": ["List of 1-3 factual gaps or missing requirements"],
+  "experienceAssessment": "1-2 sentences evaluating candidate experience depth relative to job needs.",
+  "recommendedInterviewFocus": ["2-3 specific technical areas or competency probes to evaluate in the interview"]
+}
+
+Guidelines for verdict:
+- overallScore >= 85: "strong_match"
+- overallScore >= 70: "qualified_match"
+- overallScore >= 55: "borderline"
+- overallScore < 55: "not_recommended"
+`;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response.text;
+    if (!text) return deterministicFallback;
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText) as RecruitmentMatchExplanationResult;
+
+    if (
+      !result.verdict ||
+      !result.executiveSummary ||
+      !Array.isArray(result.keyStrengths) ||
+      !Array.isArray(result.identifiedGaps) ||
+      !result.experienceAssessment ||
+      !Array.isArray(result.recommendedInterviewFocus)
+    ) {
+      return deterministicFallback;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Failed to generate recruitment match explanation via Gemini, using deterministic fallback:', error);
+    return deterministicFallback;
+  }
+}
+
+
