@@ -2255,4 +2255,239 @@ Guidelines for verdict:
   }
 }
 
+export interface SkillGapExplanationResult {
+  executiveSummary: string;
+  summary?: string;
+  businessImpact: string;
+  whyItMatters?: string;
+  coverageAnalysis?: string;
+  recommendedStrategy: 'internal_upskill' | 'external_hire' | 'hybrid' | 'risk_mitigation';
+  upskillingPlan: string[];
+  upskillingPaths?: string[];
+  recruitmentAction: string;
+  recruitmentOptions?: string[];
+  riskMitigationNotes?: string;
+  riskContext?: string;
+  recommendations?: string[];
+  groundedMetrics?: {
+    targetHeadcount: number;
+    verifiedHeadcount: number;
+    severity: string;
+  };
+}
+
+/**
+ * Generates an evidence-grounded strategic explanation for a documented workforce skill gap.
+ * CRITICAL AI SAFETY:
+ * - Gemini must NOT calculate authoritative gap scores, invent skills, or alter employee records.
+ * - The authoritative metrics (coverage, gap count, severity, compound risk) are supplied and final.
+ * - Falls back deterministically if Gemini is offline, unconfigured, or errors.
+ */
+export async function generateSkillGapExplanation(context: {
+  skillName?: string;
+  skill?: string;
+  department?: string;
+  gapMetrics?: {
+    targetCoverage: number;
+    verifiedCount: number;
+    availableCount: number;
+    severity: 'critical' | 'moderate' | 'healthy';
+    criticality: 'critical' | 'high' | 'medium';
+    hasCompoundRisk: boolean;
+  };
+  coveredEmployees?: Array<{
+    name: string;
+    roleTitle: string;
+    proficiency: string;
+    verified: boolean;
+    hasActiveRisk?: boolean;
+    riskType?: string;
+  }>;
+  employeesCovering?: any[];
+  verifiedEmployees?: any[];
+  upskillingCandidates?: Array<{
+    name: string;
+    roleTitle: string;
+    adjacentSkills: string[];
+    readinessScore: number;
+  }>;
+  recruitmentOpportunity?: {
+    jobTitle?: string;
+    title?: string;
+    candidateCount?: number;
+    matchingCandidatesCount?: number;
+    topCandidates?: Array<{ name: string; matchScore: number }>;
+  };
+  recruitmentOpportunities?: any[];
+  [key: string]: any;
+}): Promise<SkillGapExplanationResult> {
+  const skillName = context.skillName || context.skill || 'Specified Skill';
+  const department = context.department || 'Organization';
+  const gapMetrics = context.gapMetrics || {
+    targetCoverage: context.targetCoverage || context.targetHeadcount || 1,
+    verifiedCount: context.verifiedCount || context.verifiedHeadcount || 0,
+    availableCount: context.availableCount || context.availableHeadcount || 0,
+    severity: context.severity || 'moderate',
+    criticality: context.criticality || 'high',
+    hasCompoundRisk: Boolean(context.hasCompoundRisk)
+  };
+  const coveredEmployees = context.coveredEmployees || context.employeesCovering || context.verifiedEmployees || [];
+  const upskillingCandidates = context.upskillingCandidates || [];
+  const recOpp = context.recruitmentOpportunity ||
+    (context.recruitmentOpportunities && context.recruitmentOpportunities[0]) ||
+    undefined;
+
+  const recruitmentOpportunity = recOpp
+    ? {
+        jobTitle: recOpp.jobTitle || recOpp.title || 'Requisition',
+        candidateCount: recOpp.candidateCount ?? recOpp.matchingCandidatesCount ?? (recOpp.topCandidates ? recOpp.topCandidates.length : 0),
+        topCandidates: recOpp.topCandidates || []
+      }
+    : undefined;
+
+  // Determine strategic posture deterministically
+  let recommendedStrategy: 'internal_upskill' | 'external_hire' | 'hybrid' | 'risk_mitigation' = 'internal_upskill';
+  if (gapMetrics.hasCompoundRisk) {
+    recommendedStrategy = 'risk_mitigation';
+  } else if (gapMetrics.severity === 'critical' && recruitmentOpportunity && recruitmentOpportunity.candidateCount > 0) {
+    recommendedStrategy = upskillingCandidates.length > 0 ? 'hybrid' : 'external_hire';
+  } else if (gapMetrics.severity === 'critical') {
+    recommendedStrategy = 'external_hire';
+  } else if (upskillingCandidates.length > 0) {
+    recommendedStrategy = 'internal_upskill';
+  } else {
+    recommendedStrategy = 'hybrid';
+  }
+
+  // Deterministic upskilling action plan
+  const deterministicUpskillingPlan: string[] = [];
+  if (upskillingCandidates.length > 0) {
+    upskillingCandidates.slice(0, 3).forEach((cand: any) => {
+      deterministicUpskillingPlan.push(
+        `Enroll ${cand.name} (${cand.roleTitle}) in ${skillName} enablement, bridging from verified adjacent skills: ${(cand.adjacentSkills || []).join(', ')} (Readiness: ${cand.readinessScore}%).`
+      );
+    });
+  } else {
+    deterministicUpskillingPlan.push(
+      `No internal employees with adjacent prerequisite skills identified in ${department}. External acquisition or fundamental foundational training required.`
+    );
+  }
+
+  // Deterministic recruitment action
+  let deterministicRecruitmentAction = 'No active recruitment pipeline required; internal coverage is manageable.';
+  if (recruitmentOpportunity && recruitmentOpportunity.candidateCount > 0) {
+    const topNames = (recruitmentOpportunity.topCandidates || []).map((c: any) => `${c.name} (${c.matchScore}%)`).join(', ');
+    deterministicRecruitmentAction = `Leverage active job posting "${recruitmentOpportunity.jobTitle}": ${recruitmentOpportunity.candidateCount} candidates matched in pipeline, top candidate${(recruitmentOpportunity.topCandidates || []).length > 1 ? 's' : ''}: ${topNames}.`;
+  } else if (gapMetrics.severity === 'critical') {
+    deterministicRecruitmentAction = `Open a new requisition for a Senior ${skillName} practitioner to eliminate the single-point-of-failure in ${department}.`;
+  }
+
+  // Deterministic risk notes
+  const riskNotes = gapMetrics.hasCompoundRisk
+    ? `CRITICAL RISK WARNING: One or more key employees currently holding verified ${skillName} capability are flagged with high/critical burnout or flight risk. Loss of this personnel would immediately collapse verified coverage to zero.`
+    : undefined;
+
+  const deterministicFallback: SkillGapExplanationResult = {
+    executiveSummary: `Workforce intelligence analysis for ${department} reveals a ${gapMetrics.severity.toUpperCase()} skill gap in ${skillName}. Current verified coverage is ${gapMetrics.verifiedCount} of target ${gapMetrics.targetCoverage} (${Math.round((gapMetrics.verifiedCount / Math.max(1, gapMetrics.targetCoverage)) * 100)}%).`,
+    summary: `Workforce intelligence analysis for ${department} reveals a ${gapMetrics.severity.toUpperCase()} skill gap in ${skillName}. Current verified coverage is ${gapMetrics.verifiedCount} of target ${gapMetrics.targetCoverage} (${Math.round((gapMetrics.verifiedCount / Math.max(1, gapMetrics.targetCoverage)) * 100)}%).`,
+    businessImpact: `${skillName} is a ${gapMetrics.criticality.toUpperCase()}-criticality competency for ${department}. Insufficient coverage increases operational bottleneck risk, delays roadmap commitments, and restricts deployment velocity.`,
+    whyItMatters: `${skillName} is a ${gapMetrics.criticality.toUpperCase()}-criticality competency for ${department}. Insufficient coverage increases operational bottleneck risk, delays roadmap commitments, and restricts deployment velocity.`,
+    coverageAnalysis: `Current verified coverage is ${Math.round((gapMetrics.verifiedCount / Math.max(1, gapMetrics.targetCoverage)) * 100)}% (${gapMetrics.verifiedCount}/${gapMetrics.targetCoverage}). There are ${gapMetrics.availableCount - gapMetrics.verifiedCount} unverified self-reported employees.`,
+    recommendedStrategy,
+    upskillingPlan: deterministicUpskillingPlan,
+    upskillingPaths: deterministicUpskillingPlan,
+    recruitmentAction: deterministicRecruitmentAction,
+    recruitmentOptions: [deterministicRecruitmentAction],
+    riskMitigationNotes: riskNotes,
+    riskContext: riskNotes,
+    recommendations: [
+      riskNotes ? 'Address flight/burnout risks for key verified staff immediately.' : 'Maintain quarterly skills verification rubric.',
+      recommendedStrategy === 'external_hire' ? 'Expedite candidate interview rounds for active pipeline.' : 'Initiate sprint-paired upskilling for adjacent talent.',
+      'Calibrate technical assessment standards with engineering leads.'
+    ],
+    groundedMetrics: {
+      targetHeadcount: gapMetrics.targetCoverage,
+      verifiedHeadcount: gapMetrics.verifiedCount,
+      severity: gapMetrics.severity
+    }
+  };
+
+  const client = getAiClient();
+  if (!client) {
+    return deterministicFallback;
+  }
+
+  try {
+    const prompt = `
+You are a senior workforce intelligence and talent strategy consultant for CareerGenie.
+Explain the strategic implications and recommended action plan for a documented workforce skill gap.
+
+CRITICAL INSTRUCTIONS:
+1. DO NOT CALCULATE OR MODIFY THE GAP NUMBERS. The coverage metrics and severity below are mathematically authoritative.
+2. DO NOT invent employee qualifications, skills, or job postings not supplied in the input.
+3. Treat adjacent skills strictly as potential upskilling opportunities, NOT verified competencies.
+4. Output MUST strictly adhere to the requested JSON format.
+
+GAP DATA:
+- Department: ${department}
+- Skill: ${skillName}
+- Criticality: ${gapMetrics.criticality}
+- Severity: ${gapMetrics.severity}
+- Target Coverage: ${gapMetrics.targetCoverage} verified employees
+- Current Verified Coverage: ${gapMetrics.verifiedCount} employees
+- Available Unverified/Partial: ${gapMetrics.availableCount} employees
+- Compound Risk Flag: ${gapMetrics.hasCompoundRisk ? 'YES (Key verified employee is at critical burnout/flight risk)' : 'NO'}
+
+COVERED EMPLOYEES:
+${coveredEmployees.length === 0 ? '- None' : coveredEmployees.map((e: any) => `- ${e.name} (${e.roleTitle}, ${e.proficiency} proficiency, verified: ${e.verified}${e.hasActiveRisk ? `, ACTIVE RISK: ${e.riskType}` : ''})`).join('\n')}
+
+ADJACENT UPSKILLING TALENT (Do NOT say they know ${skillName}; they know adjacent skills):
+${upskillingCandidates.length === 0 ? '- None' : upskillingCandidates.map((u: any) => `- ${u.name} (${u.roleTitle}, possesses adjacent: ${(u.adjacentSkills || []).join(', ')}, readiness: ${u.readinessScore}%)`).join('\n')}
+
+RECRUITMENT PIPELINE:
+${recruitmentOpportunity ? `- Active Job: "${recruitmentOpportunity.jobTitle}", ${recruitmentOpportunity.candidateCount} matched candidates in pipeline (Top: ${(recruitmentOpportunity.topCandidates || []).map((c: any) => `${c.name} - ${c.matchScore}%`).join(', ')})` : '- No active recruitment pipeline linked'}
+
+Respond ONLY with a valid JSON object matching this schema:
+{
+  "executiveSummary": "2-3 concise sentences summarizing the current coverage vs target and severity.",
+  "businessImpact": "1-2 sentences on how this gap affects ${department} execution and SLA reliability.",
+  "recommendedStrategy": "internal_upskill" | "external_hire" | "hybrid" | "risk_mitigation",
+  "upskillingPlan": ["2-3 specific action steps for upskilling the named adjacent talent"],
+  "recruitmentAction": "Specific recruitment action leveraging existing pipeline or opening new roles",
+  "riskMitigationNotes": "Optional 1-2 sentences on single-point-of-failure or burnout retention risks if compound risk exists"
+}
+`;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response.text;
+    if (!text) return deterministicFallback;
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText) as SkillGapExplanationResult;
+
+    if (
+      !result.executiveSummary ||
+      !result.businessImpact ||
+      !result.recommendedStrategy ||
+      !Array.isArray(result.upskillingPlan) ||
+      !result.recruitmentAction
+    ) {
+      return deterministicFallback;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Failed to generate skill gap explanation via Gemini, using deterministic fallback:', error);
+    return deterministicFallback;
+  }
+}
+
+
 

@@ -14,6 +14,7 @@
     "test:hr-onboarding": "tsx scripts/verify-phase2-onboarding.ts",
     "test:hr-interview": "tsx scripts/verify-phase2-interview.ts",
     "test:hr-recruitment": "tsx scripts/verify-phase2-recruitment.ts",
+    "test:hr-skills": "tsx scripts/verify-phase2-skills.ts",
     "seed:hr": "tsx scripts/seed-hr-data.ts"
   },
   "dependencies": {

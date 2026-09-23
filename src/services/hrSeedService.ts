@@ -10,7 +10,9 @@ import Application from '@/models/Application';
 import JobMatch from '@/models/JobMatch';
 import Resume from '@/models/Resume';
 import ResumeAnalysis from '@/models/ResumeAnalysis';
+import DepartmentSkillRequirement from '@/models/DepartmentSkillRequirement';
 import { calculateDetailedMatchScore } from '@/services/matching';
+import { BASELINE_DEPARTMENT_REQUIREMENTS } from '@/services/workforceSkillIntelligenceService';
 
 export interface SeedResult {
   employeesCount: number;
@@ -21,6 +23,7 @@ export interface SeedResult {
   candidatesCount: number;
   applicationsCount: number;
   interviewEvaluationsCount: number;
+  skillRequirementsCount?: number;
 }
 
 export async function seedHrData(): Promise<SeedResult> {
@@ -241,7 +244,8 @@ export async function seedHrData(): Promise<SeedResult> {
       flightRiskLevel: 'medium',
       skills: [
         { name: 'Python', proficiency: 'intermediate', category: 'technical', verified: true },
-        { name: 'SQL', proficiency: 'intermediate', category: 'technical', verified: true }
+        { name: 'SQL', proficiency: 'intermediate', category: 'technical', verified: true },
+        { name: 'Kubernetes', proficiency: 'beginner', category: 'technical', verified: false }
       ]
     },
     {
@@ -1186,6 +1190,19 @@ export async function seedHrData(): Promise<SeedResult> {
     interviewEvaluationsCount++;
   }
 
+  // =========================================================================
+  // 7. SEED DEPARTMENT SKILL REQUIREMENTS (Workforce Skill Intelligence)
+  // =========================================================================
+  let skillRequirementsCount = 0;
+  for (const req of BASELINE_DEPARTMENT_REQUIREMENTS) {
+    await DepartmentSkillRequirement.findOneAndUpdate(
+      { department: req.department, skillName: req.skillName },
+      req,
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    skillRequirementsCount++;
+  }
+
   return {
     employeesCount: employeeMap.size,
     signalsCount,
@@ -1194,6 +1211,7 @@ export async function seedHrData(): Promise<SeedResult> {
     jobsCount: 2,
     candidatesCount,
     applicationsCount,
-    interviewEvaluationsCount
+    interviewEvaluationsCount,
+    skillRequirementsCount
   };
 }

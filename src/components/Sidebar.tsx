@@ -89,6 +89,10 @@ export default function Sidebar() {
               <span className="material-symbols-outlined">policy</span>
               <span className="font-label-md text-label-md">Policy Intelligence</span>
             </Link>
+            <Link href="/hr/skills" className={linkClass('/hr/skills')}>
+              <span className="material-symbols-outlined">hub</span>
+              <span className="font-label-md text-label-md">Skill Intelligence</span>
+            </Link>
             <Link href="/recruiter/create-job" className={linkClass('/recruiter/create-job')}>
               <span className="material-symbols-outlined">add_box</span>
               <span className="font-label-md text-label-md">Post a Job</span>
@@ -118,6 +122,10 @@ export default function Sidebar() {
             <Link href="/hr/policies" className={linkClass('/hr/policies')}>
               <span className="material-symbols-outlined">policy</span>
               <span className="font-label-md text-label-md">Policy Intelligence</span>
+            </Link>
+            <Link href="/hr/skills" className={linkClass('/hr/skills')}>
+              <span className="material-symbols-outlined">hub</span>
+              <span className="font-label-md text-label-md">Skill Intelligence</span>
             </Link>
             <Link href="/jobs" className={linkClass('/jobs')}>
               <span className="material-symbols-outlined">work</span>
