@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "npm run test:auth && npm run test:hr-reasoning && npm run test:hr-policy && npm run test:hr-onboarding && npm run test:hr-interview && npm run test:hr-recruitment && npm run test:hr-skills && npm run test:hr-command-center",
     "test:auth": "tsx scripts/verify-multitab-auth.ts",
     "test:hr-reasoning": "tsx scripts/verify-phase2-reasoning.ts",
     "test:hr-policy": "tsx scripts/verify-phase2-policy.ts",

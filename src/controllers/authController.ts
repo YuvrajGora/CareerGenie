@@ -192,6 +192,12 @@ export async function logout(req: NextRequest) {
 
 export async function getCurrentUser(req: any) {
   // req.user is populated by withAuth middleware
-  const user = req.user;
-  return NextResponse.json({ user });
+  if (!req.user) {
+    return NextResponse.json({ user: null });
+  }
+
+  const rawUser = typeof req.user.toObject === 'function' ? req.user.toObject() : { ...req.user };
+  delete rawUser.password;
+
+  return NextResponse.json({ user: rawUser });
 }
