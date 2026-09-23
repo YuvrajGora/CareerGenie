@@ -15,6 +15,7 @@
     "test:hr-interview": "tsx scripts/verify-phase2-interview.ts",
     "test:hr-recruitment": "tsx scripts/verify-phase2-recruitment.ts",
     "test:hr-skills": "tsx scripts/verify-phase2-skills.ts",
+    "test:hr-command-center": "tsx scripts/verify-phase2-command-center.ts",
     "seed:hr": "tsx scripts/seed-hr-data.ts"
   },
   "dependencies": {

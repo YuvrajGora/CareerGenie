@@ -69,17 +69,17 @@ export default function Sidebar() {
         {/* Recruiter specific links */}
         {user.role === 'recruiter' && (
           <>
+            <Link href="/hr" className={linkClass('/hr')}>
+              <span className="material-symbols-outlined">space_dashboard</span>
+              <span className="font-label-md text-label-md font-bold">HR Command Center</span>
+            </Link>
             <Link href="/hr/recruitment" className={linkClass('/hr/recruitment')}>
               <span className="material-symbols-outlined">person_search</span>
               <span className="font-label-md text-label-md">Recruitment Intelligence</span>
             </Link>
-            <Link href="/hr/interviews" className={linkClass('/hr/interviews')}>
-              <span className="material-symbols-outlined">psychology_alt</span>
-              <span className="font-label-md text-label-md">Interview Intelligence</span>
-            </Link>
-            <Link href="/hr/onboarding" className={linkClass('/hr/onboarding')}>
-              <span className="material-symbols-outlined">assignment_ind</span>
-              <span className="font-label-md text-label-md">Adaptive Onboarding</span>
+            <Link href="/hr/skills" className={linkClass('/hr/skills')}>
+              <span className="material-symbols-outlined">hub</span>
+              <span className="font-label-md text-label-md">Skill Intelligence</span>
             </Link>
             <Link href="/hr/risks" className={linkClass('/hr/risks')}>
               <span className="material-symbols-outlined">radar</span>
@@ -89,9 +89,13 @@ export default function Sidebar() {
               <span className="material-symbols-outlined">policy</span>
               <span className="font-label-md text-label-md">Policy Intelligence</span>
             </Link>
-            <Link href="/hr/skills" className={linkClass('/hr/skills')}>
-              <span className="material-symbols-outlined">hub</span>
-              <span className="font-label-md text-label-md">Skill Intelligence</span>
+            <Link href="/hr/onboarding" className={linkClass('/hr/onboarding')}>
+              <span className="material-symbols-outlined">assignment_ind</span>
+              <span className="font-label-md text-label-md">Adaptive Onboarding</span>
+            </Link>
+            <Link href="/hr/interviews" className={linkClass('/hr/interviews')}>
+              <span className="material-symbols-outlined">psychology_alt</span>
+              <span className="font-label-md text-label-md">Interview Intelligence</span>
             </Link>
             <Link href="/recruiter/create-job" className={linkClass('/recruiter/create-job')}>
               <span className="material-symbols-outlined">add_box</span>
@@ -103,17 +107,17 @@ export default function Sidebar() {
         {/* Admin specific links */}
         {user.role === 'admin' && (
           <>
+            <Link href="/hr" className={linkClass('/hr')}>
+              <span className="material-symbols-outlined">space_dashboard</span>
+              <span className="font-label-md text-label-md font-bold">HR Command Center</span>
+            </Link>
             <Link href="/hr/recruitment" className={linkClass('/hr/recruitment')}>
               <span className="material-symbols-outlined">person_search</span>
               <span className="font-label-md text-label-md">Recruitment Intelligence</span>
             </Link>
-            <Link href="/hr/interviews" className={linkClass('/hr/interviews')}>
-              <span className="material-symbols-outlined">psychology_alt</span>
-              <span className="font-label-md text-label-md">Interview Intelligence</span>
-            </Link>
-            <Link href="/hr/onboarding" className={linkClass('/hr/onboarding')}>
-              <span className="material-symbols-outlined">assignment_ind</span>
-              <span className="font-label-md text-label-md">Adaptive Onboarding</span>
+            <Link href="/hr/skills" className={linkClass('/hr/skills')}>
+              <span className="material-symbols-outlined">hub</span>
+              <span className="font-label-md text-label-md">Skill Intelligence</span>
             </Link>
             <Link href="/hr/risks" className={linkClass('/hr/risks')}>
               <span className="material-symbols-outlined">radar</span>
@@ -123,9 +127,13 @@ export default function Sidebar() {
               <span className="material-symbols-outlined">policy</span>
               <span className="font-label-md text-label-md">Policy Intelligence</span>
             </Link>
-            <Link href="/hr/skills" className={linkClass('/hr/skills')}>
-              <span className="material-symbols-outlined">hub</span>
-              <span className="font-label-md text-label-md">Skill Intelligence</span>
+            <Link href="/hr/onboarding" className={linkClass('/hr/onboarding')}>
+              <span className="material-symbols-outlined">assignment_ind</span>
+              <span className="font-label-md text-label-md">Adaptive Onboarding</span>
+            </Link>
+            <Link href="/hr/interviews" className={linkClass('/hr/interviews')}>
+              <span className="material-symbols-outlined">psychology_alt</span>
+              <span className="font-label-md text-label-md">Interview Intelligence</span>
             </Link>
             <Link href="/jobs" className={linkClass('/jobs')}>
               <span className="material-symbols-outlined">work</span>

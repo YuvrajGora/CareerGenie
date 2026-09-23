@@ -2489,5 +2489,147 @@ Respond ONLY with a valid JSON object matching this schema:
   }
 }
 
+// ============================================================================
+// PHASE 2.8: UNIFIED HR COMMAND CENTER STRATEGIC BRIEFING
+// ============================================================================
+
+export interface CommandCenterBriefingResult {
+  executiveSummary: string;
+  topRiskAnalysis: string;
+  strategicRecommendations: string[];
+  operationalPosture: 'critical_attention' | 'action_required' | 'balanced' | 'optimal';
+  groundedFacts: {
+    totalEmployees: number;
+    highCriticalRisks: number;
+    criticalSkillGaps: number;
+    activeJobs: number;
+    delayedOnboarding: number;
+  };
+}
+
+/**
+ * Generates an executive briefing narrative for the Unified HR Command Center.
+ * CRITICAL AI SAFETY:
+ * - Gemini must NOT calculate authoritative metrics, invent risks, or fabricate facts.
+ * - Metrics, headcount, risks, and skill gap counts are authoritative inputs.
+ * - Falls back deterministically if Gemini is offline, unconfigured, or errors.
+ */
+export async function generateCommandCenterBriefing(
+  overview: any
+): Promise<CommandCenterBriefingResult> {
+  const totalEmployees = overview.workforce?.totalEmployees || 0;
+  const highCriticalRisks = overview.risks?.highCriticalRisks || 0;
+  const criticalSkillGaps = overview.skills?.criticalSkillGapsCount || 0;
+  const activeJobs = overview.recruitment?.activeJobsCount || 0;
+  const delayedOnboarding = overview.onboarding?.delayedCount || 0;
+  const insights = overview.priorityInsights || [];
+
+  const topInsightTitles = insights.slice(0, 3).map((i: any) => `${i.severity.toUpperCase()}: ${i.title}`);
+
+  let operationalPosture: 'critical_attention' | 'action_required' | 'balanced' | 'optimal' = 'balanced';
+  if (highCriticalRisks > 0 || criticalSkillGaps > 0) {
+    operationalPosture = 'critical_attention';
+  } else if (delayedOnboarding > 0 || insights.some((i: any) => i.severity === 'high')) {
+    operationalPosture = 'action_required';
+  } else {
+    operationalPosture = 'optimal';
+  }
+
+  const deterministicFallback: CommandCenterBriefingResult = {
+    executiveSummary: `Workforce Command Center overview across ${totalEmployees} employees indicates ${highCriticalRisks} active severe workforce risk(s), ${criticalSkillGaps} critical department skill gap(s), and ${activeJobs} active recruitment requisition(s). Operational posture is currently ${operationalPosture.replace('_', ' ').toUpperCase()}.`,
+    topRiskAnalysis: insights.length > 0
+      ? `Primary cross-module exposures: ${topInsightTitles.join('; ')}.`
+      : `No severe workforce or skill risks currently flagged across organizational telemetry.`,
+    strategicRecommendations: [
+      highCriticalRisks > 0 ? 'Prioritize manager 1-on-1 check-ins and workload rebalancing for flagged flight/burnout risks.' : 'Maintain quarterly retention monitoring.',
+      criticalSkillGaps > 0 ? 'Expedite candidate interview loops for open requisitions linked to critical skill gaps.' : 'Continue internal skill progression programs.',
+      delayedOnboarding > 0 ? 'Trigger adaptive onboarding interventions for delayed new hires.' : 'Onboarding pipeline operating with healthy velocity.'
+    ],
+    operationalPosture,
+    groundedFacts: {
+      totalEmployees,
+      highCriticalRisks,
+      criticalSkillGaps,
+      activeJobs,
+      delayedOnboarding
+    }
+  };
+
+  const client = getAiClient();
+  if (!client) {
+    return deterministicFallback;
+  }
+
+  try {
+    const prompt = `
+You are an executive talent strategist and workforce intelligence advisor for CareerGenie.
+Generate a concise, evidence-grounded executive briefing based strictly on the authoritative data provided.
+
+CRITICAL CONSTRAINTS:
+1. DO NOT recalculate or modify numbers. All facts below are authoritative.
+2. DO NOT invent employees, risks, jobs, or incidents not present in the input.
+3. Respond ONLY with a valid JSON object matching the requested schema.
+
+AUTHORITATIVE TELEMETRY:
+- Total Workforce: ${totalEmployees} employees
+- Severe Workforce Risks (High/Critical): ${highCriticalRisks}
+- Critical Department Skill Gaps: ${criticalSkillGaps}
+- Active Recruitment Requisitions: ${activeJobs}
+- Delayed Onboarding Plans: ${delayedOnboarding}
+- Top Priority Insights:
+${insights.slice(0, 4).map((i: any) => `- [${i.severity.toUpperCase()}] ${i.title}: ${i.summary}`).join('\n')}
+
+SCHEMA:
+{
+  "executiveSummary": "2-3 concise sentences summarizing organizational health and primary operational focus.",
+  "topRiskAnalysis": "1-2 sentences identifying the most acute cross-module exposure (e.g. compound retention, skill gap, onboarding).",
+  "strategicRecommendations": ["3 specific, actionable leadership recommendations matching the evidence"],
+  "operationalPosture": "critical_attention" | "action_required" | "balanced" | "optimal"
+}
+`;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response.text;
+    if (!text) return deterministicFallback;
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText);
+
+    if (
+      !result.executiveSummary ||
+      !result.topRiskAnalysis ||
+      !Array.isArray(result.strategicRecommendations) ||
+      !result.operationalPosture
+    ) {
+      return deterministicFallback;
+    }
+
+    return {
+      executiveSummary: result.executiveSummary,
+      topRiskAnalysis: result.topRiskAnalysis,
+      strategicRecommendations: result.strategicRecommendations,
+      operationalPosture: result.operationalPosture,
+      groundedFacts: {
+        totalEmployees,
+        highCriticalRisks,
+        criticalSkillGaps,
+        activeJobs,
+        delayedOnboarding
+      }
+    };
+  } catch (err) {
+    console.error('Failed to generate command center briefing via Gemini, using deterministic fallback:', err);
+    return deterministicFallback;
+  }
+}
+
+
 
 
