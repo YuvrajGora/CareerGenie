@@ -364,6 +364,14 @@ export default function Header() {
                     <span className="font-label-md text-label-md">Adaptive Onboarding</span>
                   </Link>
                   <Link
+                    href="/hr/interviews"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">psychology_alt</span>
+                    <span className="font-label-md text-label-md">Interview Intelligence</span>
+                  </Link>
+                  <Link
                     href="/recruiter/create-job"
                     onClick={() => setShowMobileMenu(false)}
                     className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
@@ -398,6 +406,14 @@ export default function Header() {
                   >
                     <span className="material-symbols-outlined">assignment_ind</span>
                     <span className="font-label-md text-label-md">Adaptive Onboarding</span>
+                  </Link>
+                  <Link
+                    href="/hr/interviews"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">psychology_alt</span>
+                    <span className="font-label-md text-label-md">Interview Intelligence</span>
                   </Link>
                   <Link
                     href="/jobs"

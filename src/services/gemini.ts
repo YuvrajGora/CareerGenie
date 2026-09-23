@@ -1501,3 +1501,550 @@ export async function analyzeOnboardingVelocityAndAdapt(
     return deterministicFallback;
   }
 }
+
+// ============================================================================
+// PHASE 2.5: INTELLIGENT INTERVIEW AGENT GEMINI EXTENSIONS
+// ============================================================================
+
+export interface InterviewQuestionItem {
+  question: string;
+  competency: string;
+  lookFors: string[];
+  redFlags: string[];
+}
+
+export interface InterviewQuestionRubricResult {
+  questions: InterviewQuestionItem[];
+}
+
+export interface InterviewQuestionContext {
+  jobTitle: string;
+  jobDescription: string;
+  requiredSkills: string[];
+  candidateName: string;
+  candidateSkills: string[];
+  careerLevel?: string;
+  yearsOfExperience?: number;
+  interviewStage: 'screen' | 'technical' | 'system_design' | 'culture_fit' | 'final';
+  matchBreakdown?: {
+    matchScore?: number;
+    skillsMatch?: number;
+    experienceMatch?: number;
+    educationMatch?: number;
+  };
+}
+
+export interface InterviewSynthesisContext {
+  candidateName: string;
+  roleTitle: string;
+  jobTitle: string;
+  interviewStage: string;
+  overallScore: number;
+  recommendation: 'strong_hire' | 'hire' | 'borderline' | 'do_not_hire';
+  competencies: Array<{
+    competency: string;
+    score: number;
+    weight: number;
+    feedback: string;
+    keySignals: string[];
+  }>;
+  rawInterviewNotes?: string;
+}
+
+export interface InterviewSynthesisResult {
+  summary: string;
+  strengths: string[];
+  concerns: string[];
+  evidence: string[];
+  recommendationRationale: string;
+}
+
+/**
+ * Deterministic fallback question generator for interview stages.
+ * Zero-hallucination, strictly tailored to the verified skills, stage, and role.
+ */
+function getDeterministicInterviewQuestions(context: InterviewQuestionContext): InterviewQuestionRubricResult {
+  const { jobTitle, requiredSkills, candidateSkills, interviewStage } = context;
+  const primarySkill = requiredSkills[0] || candidateSkills[0] || 'software engineering';
+  const secondarySkill = requiredSkills[1] || candidateSkills[1] || 'system architecture';
+
+  switch (interviewStage) {
+    case 'screen':
+      return {
+        questions: [
+          {
+            question: `Can you walk me through your recent hands-on experience utilizing ${primarySkill}, and describe how you contributed to production-grade deliverables?`,
+            competency: 'Core Technical Competence',
+            lookFors: [
+              'Concrete architectural or operational examples from recent projects',
+              'Familiarity with modern tooling, idioms, and industry standards',
+              'Clear articulation of individual contribution versus team output'
+            ],
+            redFlags: [
+              'Vague or purely theoretical explanations without implementation details',
+              'Inability to explain foundational concepts of claimed skills',
+              'Significant discrepancy between stated resume skills and live explanation'
+            ]
+          },
+          {
+            question: `Tell me about a challenging project requirement or technical obstacle you encountered recently. How did you decompose the problem and deliver a stable solution?`,
+            competency: 'Problem Solving & Execution',
+            lookFors: [
+              'Structured decomposition of complex or ambiguous requirements',
+              'Proactive cross-functional communication and risk mitigation',
+              'Clear focus on end-user impact and business reliability'
+            ],
+            redFlags: [
+              'Blaming teammates, tools, or dependencies without constructive accountability',
+              'Giving up or waiting for explicit instructions when blocked',
+              'Lack of a repeatable problem-solving framework'
+            ]
+          },
+          {
+            question: `What specific aspects of the ${jobTitle} role and our engineering domain motivated your application, and how does this align with your career trajectory?`,
+            competency: 'Role Alignment & Motivation',
+            lookFors: [
+              'Demonstrated research into the role domain and operational challenges',
+              'Realistic expectations of day-to-day responsibilities and ramp-up pace',
+              'Clear alignment with long-term professional development goals'
+            ],
+            redFlags: [
+              'Zero familiarity with the role requirements or company domain',
+              'Purely transactional motivations without role engagement',
+              'Misaligned expectations regarding work scope or collaboration model'
+            ]
+          }
+        ]
+      };
+
+    case 'technical':
+      return {
+        questions: [
+          {
+            question: `How would you architect and implement a high-throughput, low-latency service utilizing ${primarySkill} and ${secondarySkill} while ensuring resilient error recovery and data integrity?`,
+            competency: 'Domain & Framework Expertise',
+            lookFors: [
+              'Deep understanding of language idioms, memory/concurrency models, and runtime performance',
+              'Robust error propagation, circuit-breaking, and boundary validation',
+              'Thoughtful data structure selection and algorithmic complexity awareness'
+            ],
+            redFlags: [
+              'Neglecting concurrency hazards, memory leaks, or unhandled exceptions',
+              'Over-engineering trivial flows while ignoring core scaling bottlenecks',
+              'Inability to write clean, idiomatic, testable code under standard constraints'
+            ]
+          },
+          {
+            question: `Walk me through your methodology for automated testing across unit, integration, and end-to-end boundaries. How do you maintain high test confidence without fragile test suites?`,
+            competency: 'Code Quality & Testing',
+            lookFors: [
+              'Clear testing pyramid philosophy separating unit speed from integration confidence',
+              'Rigorous boundary, error-path, and edge-case verification',
+              'Experience with deterministic test data generation and CI/CD test gates'
+            ],
+            redFlags: [
+              'Treating automated testing as an afterthought or optional practice',
+              'Testing only the happy path with zero regression guards',
+              'Heavy reliance on manual QA testing for basic regression detection'
+            ]
+          },
+          {
+            question: `Describe a severe production incident or subtle performance degradation you diagnosed. How did you isolate the root cause, mitigate immediate impact, and prevent recurrence?`,
+            competency: 'Debugging & Performance Tuning',
+            lookFors: [
+              'Hypothesis-driven debugging utilizing distributed traces, logs, and metrics',
+              'Decisive triage balancing immediate customer mitigation against deep diagnosis',
+              'Formal blameless post-mortem actions and automated regression tests'
+            ],
+            redFlags: [
+              'Guess-and-check modification without telemetry or scientific isolation',
+              'Fixing symptoms without understanding underlying root causes',
+              'Dismissing production incidents as one-off anomalies without remediation'
+            ]
+          }
+        ]
+      };
+
+    case 'system_design':
+      return {
+        questions: [
+          {
+            question: `How would you design a distributed, multi-region backend system for ${jobTitle} that handles bursty write traffic while maintaining predictable p99 read latency?`,
+            competency: 'Scalable Architecture & Trade-offs',
+            lookFors: [
+              'Clear functional decomposition and API boundary definitions',
+              'Principled database selection based on consistency, partition tolerance, and query patterns',
+              'Tiered caching strategies with explicit invalidation and cache-stampede mitigation'
+            ],
+            redFlags: [
+              'Monolithic assumptions with single points of catastrophic failure',
+              'Blindly claiming 100% ACID consistency across multi-region asynchronous topologies',
+              'Ignoring backpressure, queue buildup, and network latency constraints'
+            ]
+          },
+          {
+            question: `When designing inter-service communication between synchronous protocols (REST/gRPC) and asynchronous messaging (Kafka/RabbitMQ), what factors guide your architectural selection?`,
+            competency: 'Data Flow & Integration Patterns',
+            lookFors: [
+              'Nuanced evaluation of coupling, latency budgets, and consumer scaling characteristics',
+              'Idempotent message consumption, dead-letter queuing, and outbox patterns',
+              'Schema evolution, contract versioning, and backward compatibility management'
+            ],
+            redFlags: [
+              'Rigid dogmatism favoring one communication pattern regardless of workload context',
+              'Ignoring distributed transaction failures and eventual consistency implications',
+              'Lacking idempotency handling for distributed message redelivery'
+            ]
+          },
+          {
+            question: `How do you incorporate zero-trust security, distributed tracing, and actionable SLI/SLO monitoring into a critical microservice lifecycle from day zero?`,
+            competency: 'Reliability & Observability',
+            lookFors: [
+              'Structured observability with contextual baggage propagation (OpenTelemetry)',
+              'Actionable, burn-rate based alerting aligned with user-facing SLOs rather than noisy thresholds',
+              'Graceful degradation, rate-limiting, and bulkhead isolation during downstream degradation'
+            ],
+            redFlags: [
+              'Treating security and observability as deferred post-launch items',
+              'Relying on unstructured console logging for mission-critical audit trails',
+              'Lack of rate-limiting, timeouts, or connection pool bounds'
+            ]
+          }
+        ]
+      };
+
+    case 'culture_fit':
+      return {
+        questions: [
+          {
+            question: `Describe a situation where you had a fundamental technical disagreement with a peer or senior engineer on design direction. How did you navigate the debate and reach an effective outcome?`,
+            competency: 'Constructive Collaboration & Communication',
+            lookFors: [
+              'Objective, data-driven framing of trade-offs rather than subjective debate',
+              'Active listening, genuine curiosity toward counter-proposals, and psychological safety',
+              'Full commitment to the final team consensus once decided ("disagree and commit")'
+            ],
+            redFlags: [
+              'Passive-aggressive communication, undermining decisions, or personal antagonism',
+              'Rigid stubbornness refusing to compromise despite countervailing evidence',
+              'Escalating interpersonal tension rather than clarifying technical trade-offs'
+            ]
+          },
+          {
+            question: `Tell me about a time when you received critical feedback on code quality, project scoping, or interpersonal communication. What was your immediate response and subsequent follow-through?`,
+            competency: 'Growth Mindset & Receptivity',
+            lookFors: [
+              'Intellectual humility and mature self-awareness regarding blind spots',
+              'Specific behavioral or technical adjustments enacted following the critique',
+              'Proactive follow-up to verify whether the improvement met expectations'
+            ],
+            redFlags: [
+              'Defensiveness, making excuses, or shifting blame onto colleagues',
+              'Dismissing the legitimacy of constructive input from peers or managers',
+              'Zero observable behavioral evolution following explicit feedback'
+            ]
+          },
+          {
+            question: `How do you handle ambiguous requirements and shifting sprint priorities when customer demands or deadlines change rapidly?`,
+            competency: 'Ownership & Prioritization',
+            lookFors: [
+              'Proactive stakeholder engagement to clarify core acceptance criteria and trade-offs',
+              'Ruthless prioritization based on business value and critical path delivery',
+              'Transparent status communication with team leads before deadlines are breached'
+            ],
+            redFlags: [
+              'Paralysis when encountering incomplete specifications',
+              'Making unilateral architectural assumptions without stakeholder alignment',
+              'Silently dropping critical commitments when under delivery pressure'
+            ]
+          }
+        ]
+      };
+
+    case 'final':
+    default:
+      return {
+        questions: [
+          {
+            question: `Given the technical challenges of the ${jobTitle} position, what strategic initiatives or engineering improvements would you champion during your first 90 to 180 days?`,
+            competency: 'Strategic Vision & Technical Leadership',
+            lookFors: [
+              'Pragmatic balancing of rapid onboarding wins with long-term foundational health',
+              'Deep appreciation for organizational context before proposing major changes',
+              'Clear alignment with customer-centric business value and platform scalability'
+            ],
+            redFlags: [
+              'Dogmatic desire to rewrite functioning systems without business justification',
+              'Dismissiveness toward existing team achievements or historical trade-offs',
+              'Lack of awareness regarding cross-functional and organizational dependencies'
+            ]
+          },
+          {
+            question: `How do you invest in elevating the capabilities of peers, conducting high-signal code reviews, and fostering an inclusive engineering environment?`,
+            competency: 'Mentorship & Culture Multiplier',
+            lookFors: [
+              'Empathetic, educational code review style emphasizing principles over personal taste',
+              'Demonstrated history of mentoring junior/mid-level team members into higher autonomy',
+              'Active contribution to internal documentation, tech talks, and engineering standards'
+            ],
+            redFlags: [
+              'Treating mentorship or team documentation as uncompensated distractions',
+              'Gatekeeping domain knowledge or critical system access',
+              'Authoritarian or hyper-critical code review interactions'
+            ]
+          },
+          {
+            question: `How do you determine when it is appropriate to take on technical debt to capture a market opportunity versus when technical debt must be proactively resolved?`,
+            competency: 'Engineering Pragmatism & Business Acumen',
+            lookFors: [
+              'Treating tech debt as a deliberate financial instrument with real interest costs',
+              'Collaborative partnership with product management to budget ongoing tech-debt payoff',
+              'Principled definition of non-negotiable boundaries (security, data integrity, auditability)'
+            ],
+            redFlags: [
+              'Perfectionism that blocks viable product releases for theoretical elegance',
+              'Careless accumulation of debt with zero intention or plan for remediation',
+              'Inability to translate technical risks into business-relevant terminology'
+            ]
+          }
+        ]
+      };
+  }
+}
+
+/**
+ * Generates targeted, evidence-grounded interview questions with competency look-fors and red flags.
+ * Uses Gemini AI if available with verified database facts only, falling back deterministically.
+ */
+export async function generateInterviewQuestionRubric(
+  context: InterviewQuestionContext
+): Promise<InterviewQuestionRubricResult> {
+  const deterministicFallback = getDeterministicInterviewQuestions(context);
+  const client = getAiClient();
+
+  if (!client) {
+    return deterministicFallback;
+  }
+
+  try {
+    const prompt = `
+      You are CareerGenie's Intelligent Interview Agent.
+      Generate targeted, evidence-grounded interview questions and competency assessment rubrics tailored specifically to the candidate and role.
+
+      CRITICAL CONSTRAINTS:
+      1. You receive ONLY verified database facts below. Do NOT hallucinate candidate experience, skills, employers, or credentials not listed.
+      2. Tailor questions to the requested interview stage: "${context.interviewStage}".
+      3. For each question, provide:
+         - The question text
+         - The specific competency being evaluated
+         - A list of 3 concrete "lookFors" (positive signals of competency)
+         - A list of 3 concrete "redFlags" (warning signals or poor answers)
+      4. Ground all questions in the verified job requirements and candidate profile.
+
+      VERIFIED CONTEXT:
+      - Job Title: ${context.jobTitle}
+      - Job Description: ${context.jobDescription}
+      - Required Skills: ${context.requiredSkills.join(', ')}
+      - Candidate Name: ${context.candidateName}
+      - Verified Candidate Skills: ${context.candidateSkills.join(', ')}
+      - Candidate Career Level: ${context.careerLevel || 'Not specified'}
+      - Years of Experience: ${context.yearsOfExperience ?? 'Not specified'}
+      - Interview Stage: ${context.interviewStage}
+      ${context.matchBreakdown ? `- Job Match Breakdown: Score ${context.matchBreakdown.matchScore}%, Skills ${context.matchBreakdown.skillsMatch}%, Experience ${context.matchBreakdown.experienceMatch}%` : ''}
+
+      OUTPUT FORMAT:
+      Return ONLY a raw JSON object with NO markdown formatting:
+      {
+        "questions": [
+          {
+            "question": "string",
+            "competency": "string",
+            "lookFors": ["signal 1", "signal 2", "signal 3"],
+            "redFlags": ["flag 1", "flag 2", "flag 3"]
+          }
+        ]
+      }
+    `;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response.text;
+    if (!text) return deterministicFallback;
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText) as InterviewQuestionRubricResult;
+
+    if (!Array.isArray(result.questions) || result.questions.length === 0) {
+      return deterministicFallback;
+    }
+
+    // Validate that each question has necessary fields
+    const validQuestions = result.questions.filter(
+      (q) => q.question && q.competency && Array.isArray(q.lookFors) && Array.isArray(q.redFlags)
+    );
+
+    if (validQuestions.length === 0) {
+      return deterministicFallback;
+    }
+
+    return { questions: validQuestions };
+  } catch (error) {
+    console.error('Failed to generate interview questions via Gemini, using deterministic fallback:', error);
+    return deterministicFallback;
+  }
+}
+
+/**
+ * Deterministic fallback synthesis generator for completed interview evaluations.
+ * Grounds summary strictly on the recruiter's scored competencies, weights, and raw notes.
+ */
+function getDeterministicInterviewSynthesis(context: InterviewSynthesisContext): InterviewSynthesisResult {
+  const {
+    candidateName,
+    roleTitle,
+    interviewStage,
+    overallScore,
+    recommendation,
+    competencies,
+    rawInterviewNotes
+  } = context;
+
+  const highScores = competencies.filter((c) => c.score >= 4);
+  const lowScores = competencies.filter((c) => c.score <= 2);
+  const midScores = competencies.filter((c) => c.score === 3);
+
+  const strengths: string[] = highScores.length > 0
+    ? highScores.map((c) => `${c.competency} (Score: ${c.score}/5): ${c.feedback || 'Exceeded target expectations.'}`)
+    : ['Demonstrated consistent foundational competency across evaluated dimensions.'];
+
+  const concerns: string[] = lowScores.length > 0
+    ? lowScores.map((c) => `${c.competency} (Score: ${c.score}/5): ${c.feedback || 'Below threshold for target level.'}`)
+    : (midScores.length > 0
+        ? [`Developing proficiency in ${midScores.map((c) => c.competency).join(', ')}.`]
+        : ['No critical competency deficiencies observed during this session.']);
+
+  const evidence: string[] = [
+    ...competencies.flatMap((c) =>
+      c.keySignals && c.keySignals.length > 0
+        ? c.keySignals.map((signal) => `Demonstrated signal in ${c.competency}: "${signal}"`)
+        : [`Evaluated ${c.competency} with score ${c.score}/5 (weight: ${Math.round(c.weight * 100)}%)`]
+    )
+  ];
+
+  if (rawInterviewNotes && rawInterviewNotes.trim().length > 0) {
+    evidence.push(`Interviewer Field Notes: "${rawInterviewNotes.trim().slice(0, 200)}${rawInterviewNotes.length > 200 ? '...' : ''}"`);
+  }
+
+  const recFormatted = recommendation.replace(/_/g, ' ').toUpperCase();
+  const summary = `Candidate ${candidateName} completed the ${interviewStage} interview stage for the ${roleTitle} position with a deterministic weighted score of ${overallScore}/100, resulting in a ${recFormatted} recommendation across ${competencies.length} evaluated competency dimensions.`;
+
+  let recommendationRationale = '';
+  switch (recommendation) {
+    case 'strong_hire':
+      recommendationRationale = `Candidate achieved a top-tier score of ${overallScore}/100, meeting or exceeding high-performance benchmarks across all primary weighted competencies. Recommended for rapid progression in the hiring pipeline.`;
+      break;
+    case 'hire':
+      recommendationRationale = `Candidate demonstrated solid core competency with an overall score of ${overallScore}/100. Meets established role requirements with manageable development areas.`;
+      break;
+    case 'borderline':
+      recommendationRationale = `Candidate achieved an overall score of ${overallScore}/100, indicating mixed signals. Strengths in specific competencies are offset by noticeable development gaps that warrant committee deliberation or targeted follow-up.`;
+      break;
+    case 'do_not_hire':
+    default:
+      recommendationRationale = `Candidate achieved an overall score of ${overallScore}/100, falling below minimum competency thresholds for the ${roleTitle} role. Deficiencies in core weighted dimensions preclude recommendation.`;
+      break;
+  }
+
+  return {
+    summary,
+    strengths,
+    concerns,
+    evidence,
+    recommendationRationale
+  };
+}
+
+/**
+ * Synthesizes an evidence-grounded interview evaluation using Gemini AI, with deterministic fallback.
+ * Strictly grounds synthesis in the recruiter's scored competencies, notes, and deterministic score.
+ * NEVER allows Gemini to calculate or override the numeric overallScore or recommendation.
+ */
+export async function synthesizeInterviewEvaluation(
+  context: InterviewSynthesisContext
+): Promise<InterviewSynthesisResult> {
+  const deterministicFallback = getDeterministicInterviewSynthesis(context);
+  const client = getAiClient();
+
+  if (!client) {
+    return deterministicFallback;
+  }
+
+  try {
+    const prompt = `
+      You are CareerGenie's Intelligent Interview Agent Synthesis Engine.
+      Synthesize an objective, evidence-grounded interview evaluation summary based strictly on the recruiter's observed competency evaluations, deterministic score, and notes.
+
+      CRITICAL CONSTRAINTS:
+      1. You receive ONLY verified evidence below. Do NOT invent candidate achievements, employers, qualifications, or unstated interview responses.
+      2. The deterministic overall score is ${context.overallScore}/100 and the recommendation is "${context.recommendation}". DO NOT recalculate or modify these deterministic outputs.
+      3. Your task is purely to synthesize the recruiter's qualitative notes, competency scores, and key signals into an executive evaluation report.
+      4. Ground every strength, concern, and evidence item in the recruiter's explicit competency scores and notes.
+
+      VERIFIED EVALUATION EVIDENCE:
+      - Candidate Name: ${context.candidateName}
+      - Target Role: ${context.roleTitle}
+      - Interview Stage: ${context.interviewStage}
+      - Deterministic Overall Score: ${context.overallScore}/100
+      - Deterministic Recommendation: ${context.recommendation}
+      - Evaluated Competencies:
+      ${context.competencies.map((c) => `  * ${c.competency}: Score ${c.score}/5 (Weight: ${c.weight}) - Feedback: "${c.feedback}" - Key Signals: [${c.keySignals.join(', ')}]`).join('\n')}
+      - Raw Interview Notes: ${context.rawInterviewNotes ? `"${context.rawInterviewNotes}"` : 'None recorded'}
+
+      OUTPUT FORMAT:
+      Return ONLY a raw JSON object with NO markdown formatting:
+      {
+        "summary": "2-3 sentences synthesizing the candidate's performance across competencies for this stage.",
+        "strengths": ["Evidence-grounded strength 1", "Evidence-grounded strength 2"],
+        "concerns": ["Evidence-grounded concern 1", "Evidence-grounded concern 2"],
+        "evidence": ["Specific observed signal or note 1", "Specific observed signal or note 2"],
+        "recommendationRationale": "Clear rationale explaining why the deterministic score and competency outcomes warrant the ${context.recommendation} outcome."
+      }
+    `;
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+
+    const text = response.text;
+    if (!text) return deterministicFallback;
+
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanedText) as InterviewSynthesisResult;
+
+    if (
+      !result.summary ||
+      !Array.isArray(result.strengths) ||
+      !Array.isArray(result.concerns) ||
+      !Array.isArray(result.evidence) ||
+      !result.recommendationRationale
+    ) {
+      return deterministicFallback;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Failed to synthesize interview evaluation via Gemini, using deterministic fallback:', error);
+    return deterministicFallback;
+  }
+}
+

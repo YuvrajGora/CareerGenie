@@ -12,6 +12,7 @@
     "test:hr-reasoning": "tsx scripts/verify-phase2-reasoning.ts",
     "test:hr-policy": "tsx scripts/verify-phase2-policy.ts",
     "test:hr-onboarding": "tsx scripts/verify-phase2-onboarding.ts",
+    "test:hr-interview": "tsx scripts/verify-phase2-interview.ts",
     "seed:hr": "tsx scripts/seed-hr-data.ts"
   },
   "dependencies": {

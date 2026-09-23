@@ -218,6 +218,17 @@ export default function ApplicationsPage() {
                           </button>
                         </div>
 
+                        {/* Interview Intelligence shortcut */}
+                        {(user.role === 'recruiter' || user.role === 'admin') && app.status === 'interviewing' && (
+                          <button
+                            onClick={() => router.push(`/hr/interviews?applicationId=${app._id}`)}
+                            className="w-full mt-2 flex items-center justify-center gap-1.5 py-1 px-2 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs font-bold transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">psychology_alt</span>
+                            Evaluate Interview
+                          </button>
+                        )}
+
                         {/* Status switcher for recruiters or demo purposes */}
                         {(user.role === 'recruiter' || user.role === 'admin') && (
                           <div className="mt-md pt-md border-t border-outline-variant/30 flex flex-wrap gap-xs">
