@@ -32,21 +32,30 @@ async function handleSeed(req: NextRequest) {
       }
     }
 
-    // 2. Check for secret key in query params or header
+    // 2. Check for secret key in query params or header (supports SEED_SECRET or JWT_SECRET)
     if (!isAuthorized) {
-      let expectedSecret: string | null = null;
-      try {
-        expectedSecret = process.env.JWT_SECRET || getJwtSecret();
-      } catch {
-        expectedSecret = process.env.JWT_SECRET || null;
+      const candidateSecrets: string[] = [];
+      if (process.env.SEED_SECRET) {
+        candidateSecrets.push(process.env.SEED_SECRET);
+      }
+      if (process.env.JWT_SECRET) {
+        candidateSecrets.push(process.env.JWT_SECRET);
+      } else {
+        try {
+          const jwtSecret = getJwtSecret();
+          if (jwtSecret) candidateSecrets.push(jwtSecret);
+        } catch {
+          // getJwtSecret throws in production if JWT_SECRET is unset
+        }
       }
 
-      if (expectedSecret) {
+      if (candidateSecrets.length > 0) {
         const { searchParams } = new URL(req.url);
         const secretParam = searchParams.get('secret') || searchParams.get('key');
         const secretHeader = req.headers.get('x-seed-secret');
+        const providedSecret = secretParam || secretHeader;
 
-        if (secretParam === expectedSecret || secretHeader === expectedSecret) {
+        if (providedSecret && candidateSecrets.includes(providedSecret)) {
           isAuthorized = true;
         }
       }

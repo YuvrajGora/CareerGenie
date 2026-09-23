@@ -340,6 +340,30 @@ export default function Header() {
               {user.role === 'recruiter' && (
                 <>
                   <Link
+                    href="/hr"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">space_dashboard</span>
+                    <span className="font-label-md text-label-md">HR Command Center</span>
+                  </Link>
+                  <Link
+                    href="/hr/recruitment"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">person_search</span>
+                    <span className="font-label-md text-label-md">Recruitment Intelligence</span>
+                  </Link>
+                  <Link
+                    href="/hr/skills"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">hub</span>
+                    <span className="font-label-md text-label-md">Skill Intelligence</span>
+                  </Link>
+                  <Link
                     href="/hr/risks"
                     onClick={() => setShowMobileMenu(false)}
                     className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
@@ -383,6 +407,30 @@ export default function Header() {
               )}
               {user.role === 'admin' && (
                 <>
+                  <Link
+                    href="/hr"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">space_dashboard</span>
+                    <span className="font-label-md text-label-md">HR Command Center</span>
+                  </Link>
+                  <Link
+                    href="/hr/recruitment"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">person_search</span>
+                    <span className="font-label-md text-label-md">Recruitment Intelligence</span>
+                  </Link>
+                  <Link
+                    href="/hr/skills"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center gap-3 px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined">hub</span>
+                    <span className="font-label-md text-label-md">Skill Intelligence</span>
+                  </Link>
                   <Link
                     href="/hr/risks"
                     onClick={() => setShowMobileMenu(false)}
